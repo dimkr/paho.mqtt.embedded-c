@@ -11,38 +11,62 @@ srcs = [
     'MQTTPacket/src/MQTTSubscribeServer.c',
     'MQTTPacket/src/MQTTUnsubscribeClient.c',
     'MQTTPacket/src/MQTTUnsubscribeServer.c',
+    'MQTTClient-C/src/linux/MQTTLinux.c',
+    'MQTTClient-C/src/MQTTClient.c',
 ]
 
 libpaho_embed_mqtt3c_includes = [
     include_directories('MQTTPacket/src'),
     include_directories('MQTTClient-C/src'),
+    include_directories('MQTTClient-C/src/linux'),
+]
+
+libpaho_embed_mqtt3c_cflags = [
+    '-DMQTTCLIENT_PLATFORM_HEADER=MQTTLinux.h',
 ]
 
 if get_option('default_library') == 'shared'
+    libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
+
     libpaho_embed_mqtt3c = shared_library('paho-embed-mqtt3c',
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
+                                          c_args: libpaho_embed_mqtt3c_cflags,
                                           gnu_symbol_visibility: 'hidden',
-                                          c_args: '-DLINUX_SO',
                                           soversion: 1)
 else
     libpaho_embed_mqtt3c = static_library('paho-embed-mqtt3c',
                                           srcs,
-                                          include_directories: libpaho_embed_mqtt3c_includes)
+                                          include_directories: libpaho_embed_mqtt3c_includes,
+                                          c_args: libpaho_embed_mqtt3c_cflags)
 endif
+
+libpaho_embed_mqtt3c_dependency = declare_dependency(include_directories: libpaho_embed_mqtt3c_includes,
+                                                     link_with: libpaho_embed_mqtt3c,
+                                                     compile_args: libpaho_embed_mqtt3c_cflags)
 
 if not meson.is_subproject()
     foreach name: ['pub0sub1', 'qos0pub']
         executable(name,
                    'MQTTPacket/samples/@0@.c'.format(name),
                    'MQTTPacket/samples/transport.c',
-                   include_directories: libpaho_embed_mqtt3c_includes,
-                   link_with: libpaho_embed_mqtt3c)
+                   dependencies: libpaho_embed_mqtt3c_dependency)
     endforeach
+
+    executable('stdoutsubc',
+               'MQTTClient-C/samples/linux/stdoutsub.c',
+                dependencies: libpaho_embed_mqtt3c_dependency)
 
     test1 = executable('test1',
                        'MQTTPacket/test/test1.c',
-                       include_directories: libpaho_embed_mqtt3c_includes,
-                       link_with: libpaho_embed_mqtt3c)
+                       dependencies: libpaho_embed_mqtt3c_dependency)
     test('test1', test1)
+
+    test1c = executable('test1c',
+                        'MQTTClient-C/test/test1.c',
+                        'MQTTClient-C/src/linux/MQTTLinux.c',
+                        dependencies: libpaho_embed_mqtt3c_dependency)
+    test('test1c',
+         test1c,
+         timeout: 600)
 endif
