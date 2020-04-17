@@ -22,6 +22,8 @@ addons:
       - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
       - python3-pip
+      - python3-setuptools
+      - python3-wheel
       - ninja-build
       - mosquitto
 
