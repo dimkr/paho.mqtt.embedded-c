@@ -106,69 +106,27 @@ return >=0 for a socket descriptor, <0 for an error code
 @todo Basically moved from the sample without changes, should accomodate same usage for 'sock' for clarity,
 removing indirections
 */
-int transport_open(char* addr, int port)
+int transport_open(char* addr, char *port)
 {
 int* sock = &mysock;
-	int type = SOCK_STREAM;
-	struct sockaddr_in address;
-#if defined(AF_INET6)
-	struct sockaddr_in6 address6;
-#endif
-	int rc = -1;
-#if defined(WIN32)
-	short family;
-#else
-	sa_family_t family = AF_INET;
-#endif
 	struct addrinfo *result = NULL;
-	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
+	struct addrinfo hints = {.ai_socktype = SOCK_STREAM, .ai_flags = AI_NUMERICSERV};
 	static struct timeval tv;
 
 	*sock = -1;
 	if (addr[0] == '[')
 	  ++addr;
 
-	if ((rc = getaddrinfo(addr, NULL, &hints, &result)) == 0)
+	if (getaddrinfo(addr, port, &hints, &result) == 0)
 	{
 		struct addrinfo* res = result;
 
-		/* prefer ip4 addresses */
-		while (res)
+		for (res = result; res; res = res->ai_next)
 		{
-			if (res->ai_family == AF_INET)
-			{
-				result = res;
-				break;
-			}
-			res = res->ai_next;
-		}
+			*sock =	socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			if (*sock == -1)
+				continue;
 
-#if defined(AF_INET6)
-		if (result->ai_family == AF_INET6)
-		{
-			address6.sin6_port = htons(port);
-			address6.sin6_family = family = AF_INET6;
-			address6.sin6_addr = ((struct sockaddr_in6*)(result->ai_addr))->sin6_addr;
-		}
-		else
-#endif
-		if (result->ai_family == AF_INET)
-		{
-			address.sin_port = htons(port);
-			address.sin_family = family = AF_INET;
-			address.sin_addr = ((struct sockaddr_in*)(result->ai_addr))->sin_addr;
-		}
-		else
-			rc = -1;
-
-		freeaddrinfo(result);
-	}
-
-	if (rc == 0)
-	{
-		*sock =	socket(family, type, 0);
-		if (*sock != -1)
-		{
 #if defined(NOSIGPIPE)
 			int opt = 1;
 
@@ -176,16 +134,18 @@ int* sock = &mysock;
 				Log(TRACE_MIN, -1, "Could not set SO_NOSIGPIPE for socket %d", *sock);
 #endif
 
-			if (family == AF_INET)
-				rc = connect(*sock, (struct sockaddr*)&address, sizeof(address));
-	#if defined(AF_INET6)
-			else
-				rc = connect(*sock, (struct sockaddr*)&address6, sizeof(address6));
-	#endif
+			if (connect(*sock, res->ai_addr, res->ai_addrlen) == 0)
+				break;
+
+			close(*sock);
+			*sock = -1;
 		}
+
+		freeaddrinfo(result);
 	}
+
 	if (mysock == INVALID_SOCKET)
-		return rc;
+		return mysock;
 
 	tv.tv_sec = 1;  /* 1 second Timeout */
 	tv.tv_usec = 0;  

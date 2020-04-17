@@ -35,19 +35,19 @@ int main(int argc, char *argv[])
 	int payloadlen = strlen(payload);
 	int len = 0;
 	char *host = "m2m.eclipse.org";
-	int port = 1883;
+	char *port = "1883";
 
 	if (argc > 1)
 		host = argv[1];
 
 	if (argc > 2)
-		port = atoi(argv[2]);
+		port = argv[2];
 
 	mysock = transport_open(host,port);
 	if(mysock < 0)
 		return mysock;
 
-	printf("Sending to hostname %s port %d\n", host, port);
+	printf("Sending to hostname %s port %s\n", host, port);
 
 	data.clientID.cstring = "me";
 	data.keepAliveInterval = 20;
