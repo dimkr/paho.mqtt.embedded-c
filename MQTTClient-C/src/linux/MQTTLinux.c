@@ -118,6 +118,7 @@ int NetworkConnect(Network* n, char* addr, int port)
 	int rc = -1;
 	struct addrinfo *result = NULL;
 	struct addrinfo hints = {.ai_socktype = SOCK_STREAM};
+	struct timeval tv = {.tv_sec = 3};
 
 	if (getaddrinfo(addr, NULL, &hints, &result) == 0)
 	{
@@ -134,9 +135,13 @@ int NetworkConnect(Network* n, char* addr, int port)
 
 			n->my_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 			if (n->my_socket != -1) {
+				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
-				if (rc == 0)
+				if (rc == 0) {
+					tv.tv_sec = 0;
+					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 					break;
+				}
 
 				close(n->my_socket);
 				n->my_socket = -1;

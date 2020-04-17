@@ -111,7 +111,7 @@ int transport_open(char* addr, char *port)
 int* sock = &mysock;
 	struct addrinfo *result = NULL;
 	struct addrinfo hints = {.ai_socktype = SOCK_STREAM, .ai_flags = AI_NUMERICSERV};
-	static struct timeval tv;
+	struct timeval tv = {.tv_sec = 3};
 
 	*sock = -1;
 	if (addr[0] == '[')
@@ -134,6 +134,7 @@ int* sock = &mysock;
 				Log(TRACE_MIN, -1, "Could not set SO_NOSIGPIPE for socket %d", *sock);
 #endif
 
+			setsockopt(mysock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 			if (connect(*sock, res->ai_addr, res->ai_addrlen) == 0)
 				break;
 
@@ -148,8 +149,9 @@ int* sock = &mysock;
 		return mysock;
 
 	tv.tv_sec = 1;  /* 1 second Timeout */
-	tv.tv_usec = 0;  
 	setsockopt(mysock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval));
+	tv.tv_sec = 0;
+	setsockopt(mysock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 	return mysock;
 }
 
