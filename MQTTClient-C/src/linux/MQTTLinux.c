@@ -126,10 +126,10 @@ int NetworkConnect(Network* n, char* addr, int port)
 
 		for (res = result; res; res = res->ai_next)
 		{
-			if (result->ai_family == AF_INET)
-				((struct sockaddr_in*)(result->ai_addr))->sin_port = htons(port);
-			else if (result->ai_family == AF_INET6)
-				((struct sockaddr_in6*)(result->ai_addr))->sin6_port = htons(port);
+			if (res->ai_family == AF_INET)
+				((struct sockaddr_in*)(res->ai_addr))->sin_port = htons(port);
+			else if (res->ai_family == AF_INET6)
+				((struct sockaddr_in6*)(res->ai_addr))->sin6_port = htons(port);
 			else
 				continue;
 
