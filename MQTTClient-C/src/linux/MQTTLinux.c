@@ -260,14 +260,16 @@ int NetworkConnect(Network* n, char* addr, int port)
 				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
 				if (rc == 0) {
-					tv.tv_sec = 0;
-					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 #if defined(MQTT_SSL)
 					if (NetworkConnectSSL(n, addr) == 0)
-						break;
 #else
-					break;
+					if (1)
 #endif
+					{
+						tv.tv_sec = 0;
+						setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+						break;
+					}
 				}
 
 				close(n->my_socket);
