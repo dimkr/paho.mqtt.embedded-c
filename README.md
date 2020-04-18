@@ -27,10 +27,8 @@ CMake builds for the various packages have been introduced, along with Travis-CI
 method of building on Linux is:
 
 ```
-mkdir build.paho
-cd build.paho
-cmake ..
-make
+meson build.paho
+ninja -C build.paho
 ```
 
 The travis-build.sh file has the full build and test sequence for Linux.
