@@ -3,7 +3,7 @@
 set -e
 
 rm -rf build.paho
-meson build.paho
+meson --werror build.paho
 cd build.paho
 echo "travis build dir $TRAVIS_BUILD_DIR pwd $PWD"
 ninja
