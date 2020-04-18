@@ -27,11 +27,26 @@ libpaho_embed_mqtt3c_cflags = [
 
 libpaho_embed_mqtt33_dependencies = []
 
+default_library = get_option('default_library')
+
 ssl = get_option('ssl')
 if ssl
     cmake = import('cmake')
 
-    mbedtls = cmake.subproject('mbedtls')
+    mbedtls_options = [
+        '-DENABLE_PROGRAMS=OFF',
+        '-DUSE_PKCS11_HELPER_LIBRARY=OFF',
+        '-DINSTALL_MBEDTLS_HEADERS=OFF',
+    ]
+
+    if default_library != 'static'
+        mbedtls_options += [
+            '-DUSE_STATIC_MBEDTLS_LIBRARY=OFF',
+            '-DUSE_SHARED_MBEDTLS_LIBRARY=ON',
+        ]
+    endif
+
+    mbedtls = cmake.subproject('mbedtls', cmake_options: mbedtls_options)
 
     libmbedtls = mbedtls.dependency('mbedtls')
     libmbedx509 = mbedtls.dependency('mbedx509')
@@ -42,7 +57,7 @@ if ssl
     libpaho_embed_mqtt33_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
 endif
 
-if get_option('default_library') == 'shared'
+if default_library != 'static'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
 
     libpaho_embed_mqtt3c = shared_library('paho-embed-mqtt3c',
@@ -51,13 +66,15 @@ if get_option('default_library') == 'shared'
                                           c_args: libpaho_embed_mqtt3c_cflags,
                                           gnu_symbol_visibility: 'hidden',
                                           soversion: 1,
-                                          dependencies: libpaho_embed_mqtt33_dependencies)
+                                          dependencies: libpaho_embed_mqtt33_dependencies,
+                                          install: true)
 else
     libpaho_embed_mqtt3c = static_library('paho-embed-mqtt3c',
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
-                                          dependencies: libpaho_embed_mqtt33_dependencies)
+                                          dependencies: libpaho_embed_mqtt33_dependencies,
+                                          install: not meson.is_subproject())
 endif
 
 libpaho_embed_mqtt3c_dependency = declare_dependency(include_directories: libpaho_embed_mqtt3c_includes,
@@ -83,7 +100,6 @@ if not meson.is_subproject()
 
     test1c = executable('test1c',
                         'MQTTClient-C/test/test1.c',
-                        'MQTTClient-C/src/linux/MQTTLinux.c',
                         dependencies: libpaho_embed_mqtt3c_dependency)
     test('test1c',
          test1c,
