@@ -1,17 +1,12 @@
 #!/bin/bash
 
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-	pwd
 	pip3 install meson
-	sudo service mosquitto stop
 	# Stop any mosquitto instance which may be still running from previous runs
-	killall mosquitto
-	mosquitto -h
-	mosquitto &
+	sudo systemctl restart mosquitto
 fi
 
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-	pwd
 	brew update
 	brew install openssl mosquitto
 	brew services stop mosquitto

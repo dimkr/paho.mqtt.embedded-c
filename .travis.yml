@@ -18,8 +18,6 @@ script:
 
 addons:
   apt:
-    sources:
-      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
       - python3-pip
       - python3-setuptools

@@ -12,4 +12,3 @@ meson test -v --no-rebuild
 meson configure -Db_sanitize=address
 meson test -v
 kill %1
-killall mosquitto
