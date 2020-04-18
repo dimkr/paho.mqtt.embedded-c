@@ -8,5 +8,6 @@ cd build.paho
 echo "travis build dir $TRAVIS_BUILD_DIR pwd $PWD"
 ninja
 python ../test/mqttsas2.py localhost 1883 1885 &
+sleep 1
 meson test -v --no-rebuild
 kill %1
