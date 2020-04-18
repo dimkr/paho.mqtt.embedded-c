@@ -23,7 +23,7 @@ as possible it is a direct translation from *MQTTClient*.
 
 ## Build requirements / compilation
 
-CMake builds for the various packages have been introduced, along with Travis-CI configuration for automated build & testing.  The basic
+Meson builds for the various packages have been introduced, along with Travis-CI configuration for automated build & testing.  The basic
 method of building on Linux is:
 
 ```
