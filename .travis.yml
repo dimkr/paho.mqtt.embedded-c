@@ -8,7 +8,7 @@ os:
 sudo: required
 
 git:
-  submodules: false
+  submodules: true
   depth: 10
 
 before_install:
