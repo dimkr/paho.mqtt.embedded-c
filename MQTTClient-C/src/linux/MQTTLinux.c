@@ -261,7 +261,8 @@ int NetworkConnect(Network* n, char* addr, int port)
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
 				if (rc == 0) {
 #if defined(MQTT_SSL)
-					if (NetworkConnectSSL(n, addr) == 0)
+					rc = NetworkConnectSSL(n, addr);
+					if (rc == 0)
 #else
 					if (1)
 #endif
