@@ -23,5 +23,7 @@ addons:
       - python3-setuptools
       - python3-wheel
       - ninja-build
+      - ccache
       - mosquitto
 
+cache: ccache
