@@ -25,6 +25,23 @@ libpaho_embed_mqtt3c_cflags = [
     '-DMQTTCLIENT_PLATFORM_HEADER=MQTTLinux.h',
 ]
 
+libpaho_embed_mqtt33_dependencies = []
+
+ssl = get_option('ssl')
+if ssl
+    cmake = import('cmake')
+
+    mbedtls = cmake.subproject('mbedtls')
+
+    libmbedtls = mbedtls.dependency('mbedtls')
+    libmbedx509 = mbedtls.dependency('mbedx509')
+    libmbedcrypto = mbedtls.dependency('mbedcrypto')
+
+    libpaho_embed_mqtt3c_cflags += ['-DMQTT_SSL']
+    libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
+    libpaho_embed_mqtt33_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
+endif
+
 if get_option('default_library') == 'shared'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
 
@@ -33,12 +50,14 @@ if get_option('default_library') == 'shared'
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
                                           gnu_symbol_visibility: 'hidden',
-                                          soversion: 1)
+                                          soversion: 1,
+                                          dependencies: libpaho_embed_mqtt33_dependencies)
 else
     libpaho_embed_mqtt3c = static_library('paho-embed-mqtt3c',
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
-                                          c_args: libpaho_embed_mqtt3c_cflags)
+                                          c_args: libpaho_embed_mqtt3c_cflags,
+                                          dependencies: libpaho_embed_mqtt33_dependencies)
 endif
 
 libpaho_embed_mqtt3c_dependency = declare_dependency(include_directories: libpaho_embed_mqtt3c_includes,

@@ -73,10 +73,17 @@ int linux_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 	int bytes = 0;
 	while (bytes < len)
 	{
+#if defined(MQTT_SSL)
+		int rc = mbedtls_ssl_read(&n->ssl, &buffer[bytes], (size_t)(len - bytes));
+		if (rc < 0)
+		{
+			if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE))
+#else
 		int rc = recv(n->my_socket, &buffer[bytes], (size_t)(len - bytes), 0);
 		if (rc == -1)
 		{
 			if (errno != EAGAIN && errno != EWOULDBLOCK)
+#endif
 			  bytes = -1;
 			break;
 		}
@@ -100,7 +107,13 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 	tv.tv_usec = timeout_ms * 1000;  // Not init'ing this can cause strange errors
 
 	setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+#if defined(MQTT_SSL)
+	int rc = mbedtls_ssl_write(&n->ssl, buffer, len);
+	if (rc < 0)
+		return -1;
+#else
 	int	rc = write(n->my_socket, buffer, len);
+#endif
 	return rc;
 }
 
@@ -111,6 +124,115 @@ void NetworkInit(Network* n)
 	n->mqttread = linux_read;
 	n->mqttwrite = linux_write;
 }
+
+
+#if defined(MQTT_SSL)
+
+
+static void NetworkDisconnectSSL(Network* n)
+{
+	mbedtls_ssl_free(&n->ssl);
+	mbedtls_ssl_config_free(&n->conf);
+	mbedtls_ctr_drbg_free(&n->ctr_drbg);
+	mbedtls_entropy_free(&n->entropy);
+}
+
+
+static int ssl_recv(void *ctx, unsigned char *buf, size_t len)
+{
+	int s = (int)(intptr_t)ctx;
+	ssize_t rc;
+
+	rc = recv(s, buf, len % INT_MAX, 0);
+	if (rc < 0)
+	{
+		if (errno == EAGAIN)
+			return MBEDTLS_ERR_SSL_WANT_READ;
+
+		return MBEDTLS_ERR_NET_RECV_FAILED;
+	}
+
+	return (int)rc;
+}
+
+
+static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
+{
+	int s = (int)(intptr_t)ctx;
+	ssize_t rc;
+
+	rc = send(s, buf, len % INT_MAX, 0);
+	if (rc < 0)
+	{
+		if (errno == EAGAIN)
+			return MBEDTLS_ERR_SSL_WANT_WRITE;
+
+		return MBEDTLS_ERR_NET_SEND_FAILED;
+	}
+
+	return (int)rc;
+}
+
+
+static int NetworkConnectSSL(Network* n, char* addr)
+{
+	int rc;
+
+	mbedtls_ssl_init(&n->ssl);
+	mbedtls_ssl_config_init(&n->conf);
+	mbedtls_ctr_drbg_init(&n->ctr_drbg);
+
+	mbedtls_entropy_init(&n->entropy);
+	if (mbedtls_ctr_drbg_seed(&n->ctr_drbg,
+	                          mbedtls_entropy_func,
+	                          &n->entropy,
+	                          NULL,
+	                          0) != 0)
+		goto fail;
+
+	if (mbedtls_ssl_config_defaults(&n->conf,
+	                                MBEDTLS_SSL_IS_CLIENT,
+	                                MBEDTLS_SSL_TRANSPORT_STREAM,
+	                                MBEDTLS_SSL_PRESET_DEFAULT) != 0)
+		goto fail;
+
+	// TODO: load CA certificates and change to REQUIRED
+	mbedtls_ssl_conf_authmode(&n->conf, MBEDTLS_SSL_VERIFY_NONE);
+
+	mbedtls_ssl_conf_rng(&n->conf, mbedtls_ctr_drbg_random, &n->ctr_drbg);
+
+	if (mbedtls_ssl_setup(&n->ssl, &n->conf) != 0)
+		goto fail;
+
+	if (mbedtls_ssl_set_hostname(&n->ssl, addr) != 0)
+		goto fail;
+
+	mbedtls_ssl_set_bio(&n->ssl,
+	                    (void *)(intptr_t)n->my_socket,
+	                    ssl_send,
+	                    ssl_recv,
+	                    NULL);
+
+	while (1) {
+		rc =  mbedtls_ssl_handshake(&n->ssl);
+		if (rc == 0)
+			break;
+
+		if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_READ))
+			goto fail;
+	}
+
+	// TODO: mbedtls_ssl_get_verify_result()
+
+	return 0;
+
+fail:
+	NetworkDisconnectSSL(n);
+	return -1;
+}
+
+
+#endif
 
 
 int NetworkConnect(Network* n, char* addr, int port)
@@ -140,7 +262,12 @@ int NetworkConnect(Network* n, char* addr, int port)
 				if (rc == 0) {
 					tv.tv_sec = 0;
 					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+#if defined(MQTT_SSL)
+					if (NetworkConnectSSL(n, addr) == 0)
+						break;
+#else
 					break;
+#endif
 				}
 
 				close(n->my_socket);
@@ -157,5 +284,8 @@ int NetworkConnect(Network* n, char* addr, int port)
 
 void NetworkDisconnect(Network* n)
 {
+#if defined(MQTT_SSL)
+	NetworkDisconnectSSL(n);
+#endif
 	close(n->my_socket);
 }
