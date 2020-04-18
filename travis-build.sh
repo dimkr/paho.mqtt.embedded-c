@@ -10,4 +10,6 @@ ninja
 python ../test/mqttsas2.py localhost 1883 1885 &
 sleep 1
 meson test -v --no-rebuild
+meson configure -Dssl=true
+ninja
 kill %1

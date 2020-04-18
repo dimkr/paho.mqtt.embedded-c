@@ -7,6 +7,10 @@ os:
 
 sudo: required
 
+git:
+  submodules: false
+  depth: 10
+
 before_install:
   - ./travis-install.sh
   - unset CC
