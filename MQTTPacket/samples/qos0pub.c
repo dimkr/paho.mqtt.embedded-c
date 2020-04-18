@@ -69,7 +69,6 @@ int main(int argc, char *argv[])
 	else
 		printf("Publish failed\n");
 
-exit:
 	transport_close(mysock);
 
 	return 0;

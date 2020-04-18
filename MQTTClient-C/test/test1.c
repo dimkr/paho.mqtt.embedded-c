@@ -304,8 +304,6 @@ Test1: single-threaded client
 *********************************************************************/
 void test1_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 {
-	char* topicName = NULL;
-	int topicLen;
 	int i = 0;
 	int iterations = 50;
 	int rc;
@@ -353,7 +351,6 @@ int test1(struct Options options)
 	MQTTClient c;
 	int rc = 0;
 	char* test_topic = "C client test1";
-  MQTTPacket_willOptions wopts;
   unsigned char buf[100];
   unsigned char readbuf[100];
 
@@ -431,7 +428,6 @@ int test2(struct Options options)
 	MQTTClient c;
 	int rc = 0;
 	char* test_topic = "C client test2";
-  MQTTPacket_willOptions wopts;
   unsigned char buf[100];
   unsigned char readbuf[100];
   MQTTConnackData connack;
