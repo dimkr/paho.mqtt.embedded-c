@@ -48,7 +48,11 @@ struct Options
 	int test_no;
 } options =
 {
+#if defined(MQTT_SSL)
+	"tcp://m2m.eclipse.org:8883",
+#else
 	"tcp://m2m.eclipse.org:1883",
+#endif
 	NULL,
 	0,
 	0,

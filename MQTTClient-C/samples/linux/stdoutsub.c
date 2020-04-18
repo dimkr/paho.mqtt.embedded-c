@@ -51,6 +51,13 @@
 #include <sys/time.h>
 
 
+#if defined(MQTT_SSL)
+  #define PORT 8883
+#else
+  #define PORT 1883
+#endif
+
+
 volatile int toStop = 0;
 
 
@@ -59,7 +66,7 @@ void usage()
 	printf("MQTT stdout subscriber\n");
 	printf("Usage: stdoutsub topicname <options>, where options are:\n");
 	printf("  --host <hostname> (default is localhost)\n");
-	printf("  --port <port> (default is 1883)\n");
+	printf("  --port <port> (default is "xstr(PORT)")\n");
 	printf("  --qos <qos> (default is 2)\n");
 	printf("  --delimiter <delim> (default is \\n)\n");
 	printf("  --clientid <clientid> (default is hostname+timestamp)\n");
@@ -90,7 +97,7 @@ struct opts_struct
 	int showtopics;
 } opts =
 {
-	(char*)"stdout-subscriber", 0, (char*)"\n", QOS2, NULL, NULL, (char*)"localhost", 1883, 0
+	(char*)"stdout-subscriber", 0, (char*)"\n", QOS2, NULL, NULL, (char*)"localhost", PORT, 0
 };
 
 

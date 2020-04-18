@@ -29,8 +29,7 @@ libpaho_embed_mqtt33_dependencies = []
 
 default_library = get_option('default_library')
 
-ssl = get_option('ssl')
-if ssl
+if get_option('ssl')
     cmake = import('cmake')
 
     mbedtls_options = [
