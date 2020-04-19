@@ -131,6 +131,7 @@ void NetworkInit(Network* n)
 
 static void NetworkDisconnectSSL(Network* n)
 {
+	mbedtls_x509_crt_free(&n->ca);
 	mbedtls_ssl_free(&n->ssl);
 	mbedtls_ssl_config_free(&n->conf);
 	mbedtls_ctr_drbg_free(&n->ctr_drbg);
@@ -174,12 +175,17 @@ static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
 }
 
 
+extern const unsigned char *ca_certs;
+extern const size_t ca_certs_len;
+
+
 static int NetworkConnectSSL(Network* n, char* addr)
 {
 	int rc;
 
 	mbedtls_ssl_init(&n->ssl);
 	mbedtls_ssl_config_init(&n->conf);
+	mbedtls_x509_crt_init(&n->ca);
 	mbedtls_ctr_drbg_init(&n->ctr_drbg);
 
 	mbedtls_entropy_init(&n->entropy);
@@ -190,15 +196,16 @@ static int NetworkConnectSSL(Network* n, char* addr)
 	                          0) != 0)
 		goto fail;
 
+	if (mbedtls_x509_crt_parse(&n->ca, ca_certs, ca_certs_len) != 0)
+		goto fail;
+
 	if (mbedtls_ssl_config_defaults(&n->conf,
 	                                MBEDTLS_SSL_IS_CLIENT,
 	                                MBEDTLS_SSL_TRANSPORT_STREAM,
 	                                MBEDTLS_SSL_PRESET_DEFAULT) != 0)
 		goto fail;
 
-	// TODO: load CA certificates and change to REQUIRED
-	mbedtls_ssl_conf_authmode(&n->conf, MBEDTLS_SSL_VERIFY_NONE);
-
+	mbedtls_ssl_conf_ca_chain(&n->conf, &n->ca, NULL);
 	mbedtls_ssl_conf_rng(&n->conf, mbedtls_ctr_drbg_random, &n->ctr_drbg);
 
 	if (mbedtls_ssl_setup(&n->ssl, &n->conf) != 0)
@@ -222,9 +229,8 @@ static int NetworkConnectSSL(Network* n, char* addr)
 			goto fail;
 	}
 
-	// TODO: mbedtls_ssl_get_verify_result()
-
-	return 0;
+	if (mbedtls_ssl_get_verify_result(&n->ssl) == 0)
+		return 0;
 
 fail:
 	NetworkDisconnectSSL(n);
