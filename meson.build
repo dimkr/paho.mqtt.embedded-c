@@ -30,7 +30,7 @@ libpaho_embed_mqtt33_dependencies = []
 default_library = get_option('default_library')
 
 if get_option('ssl')
-    libressl_dir = '@0@/subprojects/libressl'.format(meson.source_root())
+    libressl_dir = '@0@/subprojects/libressl'.format(meson.current_source_dir())
     if run_command('cat', '@0@/tls/VERSION'.format(libressl_dir)).returncode() != 0
         message('Running update.sh')
         run_command('sh', '-c', 'cd @0@ && ./update.sh'.format(libressl_dir))
@@ -62,7 +62,7 @@ if get_option('ssl')
                                  find_program('sh'),
                                  '-e',
                                  '@INPUT@',
-                                 join_paths(meson.source_root(), 'curl', 'lib', 'mk-ca-bundle.pl'),
+                                 join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
                                  '@OUTPUT0@',
                              ])
     srcs += ca_certs[0]
