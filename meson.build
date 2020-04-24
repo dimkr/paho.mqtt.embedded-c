@@ -30,31 +30,41 @@ libpaho_embed_mqtt33_dependencies = []
 default_library = get_option('default_library')
 
 if get_option('ssl')
+    libressl_dir = '@0@/subprojects/libressl'.format(meson.source_root())
+    if run_command('cat', '@0@/tls/VERSION'.format(libressl_dir)).returncode() != 0
+        message('Running update.sh')
+        run_command('sh', '-c', 'cd @0@ && ./update.sh'.format(libressl_dir))
+    endif
+
     cmake = import('cmake')
 
     mbedtls_options = [
-        '-DENABLE_PROGRAMS=OFF',
-        '-DUSE_PKCS11_HELPER_LIBRARY=OFF',
-        '-DINSTALL_MBEDTLS_HEADERS=OFF',
-        '-DCMAKE_C_FLAGS=-DMBEDTLS_USER_CONFIG_FILE=\"@0@/mbedtls-config.h\"'.format(meson.source_root()),
+        '-DLIBRESSL_APPS=OFF',
+        '-DLIBRESSL_TESTS=OFF',
     ]
 
-    if default_library != 'static'
+    if default_library == 'static'
+        if meson.is_subproject()
+            mbedtls_options += [
+                '-DLIBRESSL_SKIP_INSTALL=ON',
+            ]
+        endif
+    else
         mbedtls_options += [
-            '-DUSE_STATIC_MBEDTLS_LIBRARY=OFF',
-            '-DUSE_SHARED_MBEDTLS_LIBRARY=ON',
+            '-DBUILD_SHARED_LIBS=ON',
         ]
     endif
 
-    mbedtls = cmake.subproject('mbedtls', cmake_options: mbedtls_options)
+    libressl = cmake.subproject('libressl', cmake_options: mbedtls_options)
 
-    libmbedtls = mbedtls.dependency('mbedtls')
-    libmbedx509 = mbedtls.dependency('mbedx509')
-    libmbedcrypto = mbedtls.dependency('mbedcrypto')
+    libtls = libressl.dependency('tls')
+    libssl = libressl.dependency('ssl')
+    libcrypto = libressl.dependency('crypto')
+    threads = dependency('threads')
 
     libpaho_embed_mqtt3c_cflags += ['-DMQTT_SSL']
-    libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
-    libpaho_embed_mqtt33_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
+    libpaho_embed_mqtt3c_includes += include_directories('subprojects/libressl/include')
+    libpaho_embed_mqtt33_dependencies += [libtls, libssl, libcrypto, threads]
 
     ca_certs = custom_target('ca_certs',
                              input: 'gen_ca_certs.sh',

@@ -1,6 +1,6 @@
-[submodule "subprojects/mbedtls"]
-	path = subprojects/mbedtls
-	url = https://github.com/ARMmbed/mbedtls
 [submodule "curl"]
 	path = curl
 	url = https://github.com/curl/curl
+[submodule "subprojects/libressl"]
+	path = subprojects/libressl
+	url = https://github.com/libressl-portable/portable
