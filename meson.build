@@ -38,24 +38,24 @@ if get_option('ssl')
 
     cmake = import('cmake')
 
-    mbedtls_options = [
+    libressl_options = [
         '-DLIBRESSL_APPS=OFF',
         '-DLIBRESSL_TESTS=OFF',
     ]
 
     if default_library == 'static'
         if meson.is_subproject()
-            mbedtls_options += [
+            libressl_options += [
                 '-DLIBRESSL_SKIP_INSTALL=ON',
             ]
         endif
     else
-        mbedtls_options += [
+        libressl_options += [
             '-DBUILD_SHARED_LIBS=ON',
         ]
     endif
 
-    libressl = cmake.subproject('libressl', cmake_options: mbedtls_options)
+    libressl = cmake.subproject('libressl', cmake_options: libressl_options)
 
     libtls = libressl.dependency('tls')
     libssl = libressl.dependency('ssl')
