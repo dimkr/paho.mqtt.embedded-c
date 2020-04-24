@@ -147,7 +147,7 @@ static int NetworkConnectSSL(Network* n, char* addr)
 
 	n->config = tls_config_new();
 	if (!n->config)
-		goto fail;}
+		goto fail;
 
 	if (tls_config_set_ca_mem(n->config, ca_certs, ca_certs_len) != 0)
 		goto fail;
