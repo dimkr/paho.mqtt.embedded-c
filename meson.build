@@ -39,21 +39,10 @@ if get_option('ssl')
     cmake = import('cmake')
 
     libressl_options = [
+        '-DLIBRESSL_SKIP_INSTALL=ON',
         '-DLIBRESSL_APPS=OFF',
         '-DLIBRESSL_TESTS=OFF',
     ]
-
-    if default_library == 'static'
-        if meson.is_subproject()
-            libressl_options += [
-                '-DLIBRESSL_SKIP_INSTALL=ON',
-            ]
-        endif
-    else
-        libressl_options += [
-            '-DBUILD_SHARED_LIBS=ON',
-        ]
-    endif
 
     libressl = cmake.subproject('libressl', cmake_options: libressl_options)
 
