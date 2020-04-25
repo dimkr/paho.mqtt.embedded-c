@@ -147,14 +147,20 @@ static int NetworkConnectSSL(Network* n, char* addr)
 
 	n->config = tls_config_new();
 	if (!n->config)
-		goto fail;
+		return -1;
 
 	if (tls_config_set_ca_mem(n->config, ca_certs, ca_certs_len) != 0)
-		goto fail;
+	{
+		tls_config_free(n->config);
+		return -1;
+	}
 
 	n->tls = tls_client();
 	if (!n->tls)
-		goto fail;
+	{
+		tls_config_free(n->config);
+		return -1;
+	}
 
 	if (tls_configure(n->tls, n->config) != 0)
 		goto fail;
