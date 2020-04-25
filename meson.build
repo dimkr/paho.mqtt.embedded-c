@@ -42,6 +42,8 @@ if get_option('ssl')
         '-DLIBRESSL_SKIP_INSTALL=ON',
         '-DLIBRESSL_APPS=OFF',
         '-DLIBRESSL_TESTS=OFF',
+        # TODO: fix build on x86_64 and re-enable
+        '-DENABLE_ASM=OFF',
     ]
 
     libressl = cmake.subproject('libressl', cmake_options: libressl_options)
