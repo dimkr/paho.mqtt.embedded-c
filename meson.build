@@ -36,7 +36,7 @@ if get_option('ssl')
         '-DENABLE_PROGRAMS=OFF',
         '-DUSE_PKCS11_HELPER_LIBRARY=OFF',
         '-DINSTALL_MBEDTLS_HEADERS=OFF',
-        '-DCMAKE_C_FLAGS=-DMBEDTLS_USER_CONFIG_FILE=\"@0@/mbedtls-config.h\"'.format(meson.source_root()),
+        '-DCMAKE_C_FLAGS=-DMBEDTLS_USER_CONFIG_FILE=\"@0@/mbedtls-config.h\"'.format(meson.current_source_dir()),
     ]
 
     if default_library != 'static'
@@ -63,7 +63,7 @@ if get_option('ssl')
                                  find_program('sh'),
                                  '-e',
                                  '@INPUT@',
-                                 join_paths(meson.source_root(), 'curl', 'lib', 'mk-ca-bundle.pl'),
+                                 join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
                                  '@OUTPUT0@',
                              ])
     srcs += ca_certs[0]
