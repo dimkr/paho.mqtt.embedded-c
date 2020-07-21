@@ -56,17 +56,21 @@ if get_option('ssl')
     libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
     libpaho_embed_mqtt33_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
 
-    ca_certs = custom_target('ca_certs',
-                             input: 'gen_ca_certs.sh',
-                             output: ['ca_certs.c', 'cert.pem', 'certdata.txt'],
-                             command: [
-                                 find_program('sh'),
-                                 '-e',
-                                 '@INPUT@',
-                                 join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
-                                 '@OUTPUT0@',
-                             ])
-    srcs += ca_certs[0]
+    if get_option('ssl_verify')
+        libpaho_embed_mqtt3c_cflags += ['-DMQTT_SSL_VERIFY']
+
+        ca_certs = custom_target('ca_certs',
+                                 input: 'gen_ca_certs.sh',
+                                 output: ['ca_certs.c', 'cert.pem', 'certdata.txt'],
+                                 command: [
+                                     find_program('sh'),
+                                     '-e',
+                                     '@INPUT@',
+                                     join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
+                                     '@OUTPUT0@',
+                                 ])
+        srcs += ca_certs[0]
+    endif
 endif
 
 if default_library != 'static'
