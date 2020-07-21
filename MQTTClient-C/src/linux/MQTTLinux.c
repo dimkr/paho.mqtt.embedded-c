@@ -131,7 +131,9 @@ void NetworkInit(Network* n)
 
 static void NetworkDisconnectSSL(Network* n)
 {
+#  if defined(MQTT_SSL_VERIFY)
 	mbedtls_x509_crt_free(&n->ca);
+#  endif
 	mbedtls_ssl_free(&n->ssl);
 	mbedtls_ssl_config_free(&n->conf);
 	mbedtls_ctr_drbg_free(&n->ctr_drbg);
@@ -185,7 +187,9 @@ static int NetworkConnectSSL(Network* n, char* addr)
 
 	mbedtls_ssl_init(&n->ssl);
 	mbedtls_ssl_config_init(&n->conf);
+#  if defined(MQTT_SSL_VERIFY)
 	mbedtls_x509_crt_init(&n->ca);
+#  endif
 	mbedtls_ctr_drbg_init(&n->ctr_drbg);
 
 	mbedtls_entropy_init(&n->entropy);
@@ -196,8 +200,10 @@ static int NetworkConnectSSL(Network* n, char* addr)
 	                          0) != 0)
 		goto fail;
 
+#  if defined(MQTT_SSL_VERIFY)
 	if (mbedtls_x509_crt_parse(&n->ca, ca_certs, ca_certs_len) != 0)
 		goto fail;
+#  endif
 
 	if (mbedtls_ssl_config_defaults(&n->conf,
 	                                MBEDTLS_SSL_IS_CLIENT,
@@ -205,7 +211,11 @@ static int NetworkConnectSSL(Network* n, char* addr)
 	                                MBEDTLS_SSL_PRESET_DEFAULT) != 0)
 		goto fail;
 
+#  if defined(MQTT_SSL_VERIFY)
 	mbedtls_ssl_conf_ca_chain(&n->conf, &n->ca, NULL);
+#  else
+	mbedtls_ssl_conf_authmode(&n->conf, MBEDTLS_SSL_VERIFY_NONE);
+#  endif
 	mbedtls_ssl_conf_rng(&n->conf, mbedtls_ctr_drbg_random, &n->ctr_drbg);
 
 	if (mbedtls_ssl_setup(&n->ssl, &n->conf) != 0)

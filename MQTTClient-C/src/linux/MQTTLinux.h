@@ -73,7 +73,9 @@ typedef struct Network
 	mbedtls_ctr_drbg_context ctr_drbg;
 	mbedtls_ssl_context ssl;
 	mbedtls_ssl_config conf;
+  #if defined(MQTT_SSL_VERIFY)
 	mbedtls_x509_crt ca;
+  #endif
 #endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
