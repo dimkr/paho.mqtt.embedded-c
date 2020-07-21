@@ -1,11 +1,8 @@
-sudo: true
 language: c
 dist: bionic
 
 os:
   - linux
-
-sudo: required
 
 before_install:
   - ./travis-install.sh
