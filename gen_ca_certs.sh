@@ -1,5 +1,7 @@
 #!/bin/sh -e
 
+cd $2
+
 if [ -f certdata.txt ]
 then
     perl $1 -qn cert.pem > /dev/null
@@ -7,7 +9,7 @@ else
     perl $1 -q cert.pem > /dev/null
 fi
 
-cat << EOF > $2
+cat << EOF > ca_certs.c
 #include <sys/types.h>
 
 static const unsigned char arr[] = \\
@@ -17,9 +19,9 @@ grep -v -e ^# -e '^$' cert.pem |
 while read x
 do
     echo "    \"$x\\\\n\" \\"
-done >> $2
+done >> ca_certs.c
 
-cat << EOF >> $2
+cat << EOF >> ca_certs.c
 ;
 
 const unsigned char *ca_certs = arr;

@@ -67,7 +67,7 @@ if get_option('ssl')
                                      '-e',
                                      '@INPUT@',
                                      join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
-                                     '@OUTPUT0@',
+                                     meson.current_build_dir()
                                  ])
         srcs += ca_certs[0]
     endif
