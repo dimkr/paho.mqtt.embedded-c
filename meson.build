@@ -61,7 +61,7 @@ if get_option('ssl')
 
         ca_certs = custom_target('ca_certs',
                                  input: 'gen_ca_certs.sh',
-                                 output: ['ca_certs.c', 'cert.pem', 'certdata.txt'],
+                                 output: 'ca_certs.c',
                                  command: [
                                      find_program('sh'),
                                      '-e',
@@ -69,7 +69,7 @@ if get_option('ssl')
                                      join_paths(meson.current_source_dir(), 'curl', 'lib', 'mk-ca-bundle.pl'),
                                      meson.current_build_dir()
                                  ])
-        srcs += ca_certs[0]
+        srcs += ca_certs
     endif
 endif
 

@@ -2,12 +2,8 @@
 
 cd $2
 
-if [ -f certdata.txt ]
-then
-    perl $1 -qn cert.pem > /dev/null
-else
-    perl $1 -q cert.pem > /dev/null
-fi
+perl $1 -q cert.pem > /dev/null
+rm -f certdata.txt
 
 cat << EOF > ca_certs.c
 #include <sys/types.h>
@@ -27,3 +23,5 @@ cat << EOF >> ca_certs.c
 const unsigned char *ca_certs = arr;
 const size_t ca_certs_len = sizeof(arr);
 EOF
+
+rm -f cert.pem
