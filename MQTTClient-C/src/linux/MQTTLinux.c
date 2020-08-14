@@ -504,7 +504,7 @@ static const char websocket_upgrade_fmt[] = \
 #include <mbedtls/sha1.h>
 
 
-int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
+int NetworkConnectWebSocket(Network* n, char* addr, char* uri, int timeout_ms)
 {
 	static unsigned char buf[1024];
 	static char line[128];
@@ -541,7 +541,7 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
 	if ((out <= 0) || (out >= sizeof(buf)))
 		return -1;
 
-	rc = linux_write(n, buf, out, 0);
+	rc = linux_write(n, buf, out, timeout_ms);
 	if (rc != out)
 		return rc;
 
@@ -551,7 +551,7 @@ next:
 		for (i = 0; i < sizeof(line); ++i)
 		{
 			// TODO: read with timeout
-			rc = linux_read(n, (unsigned char*)&line[i], 1, 0);
+			rc = linux_read(n, (unsigned char*)&line[i], 1, timeout_ms);
 			if (rc != 1)
 				return rc;
 
@@ -592,7 +592,7 @@ done:
 #endif
 
 
-int NetworkConnectURI(Network* n, char* addr, int port, char* uri)
+int NetworkConnectURI(Network* n, char* addr, int port, char* uri, int timeout_ms)
 {
 	int rc = -1;
 	struct addrinfo *result = NULL;
@@ -626,7 +626,7 @@ int NetworkConnectURI(Network* n, char* addr, int port, char* uri)
 #endif
 
 #if defined(MQTT_WEBSOCKET)
-				rc = NetworkConnectWebSocket(n, addr, uri);
+				rc = NetworkConnectWebSocket(n, addr, uri, timeout_ms);
 				if (rc != 0)
 					goto fail;
 #endif
@@ -650,7 +650,7 @@ fail:
 
 int NetworkConnect(Network* n, char* addr, int port)
 {
-	return NetworkConnectURI(n, addr, port, "/");
+	return NetworkConnectURI(n, addr, port, "/", 0);
 }
 
 

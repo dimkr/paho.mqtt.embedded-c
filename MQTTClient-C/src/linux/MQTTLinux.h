@@ -95,7 +95,7 @@ int linux_write(Network*, unsigned char*, int, int);
 
 DLLExport void NetworkInit(Network*);
 DLLExport int NetworkConnect(Network*, char*, int);
-DLLExport int NetworkConnectURI(Network*, char*, int, char*);
+DLLExport int NetworkConnectURI(Network*, char*, int, char*, int);
 DLLExport void NetworkDisconnect(Network*);
 
 #endif
