@@ -613,7 +613,6 @@ int NetworkConnectURI(Network* n, char* addr, int port, char* uri)
 				continue;
 
 			n->my_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-
 			if (n->my_socket != -1) {
 				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
@@ -651,7 +650,7 @@ fail:
 
 int NetworkConnect(Network* n, char* addr, int port)
 {
-    return NetworkConnectURI(n, addr, port, "/");
+	return NetworkConnectURI(n, addr, port, "/");
 }
 
 
