@@ -73,6 +73,10 @@ if get_option('ssl')
     endif
 endif
 
+if get_option('websocket')
+    libpaho_embed_mqtt3c_cflags += ['-DMQTT_WEBSOCKET']
+endif
+
 if default_library != 'static'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
 

@@ -43,6 +43,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
+#include <endian.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -77,6 +78,12 @@ typedef struct Network
 	mbedtls_x509_crt ca;
   #endif
 #endif
+#if defined(MQTT_WEBSOCKET)
+	int opcode;
+	int len;
+	int ismasked;
+	uint32_t mask;
+#endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
 	int (*mqttwrite) (struct Network*, unsigned char*, int, int);
@@ -87,6 +94,7 @@ int linux_write(Network*, unsigned char*, int, int);
 
 DLLExport void NetworkInit(Network*);
 DLLExport int NetworkConnect(Network*, char*, int);
+DLLExport int NetworkConnectURI(Network*, char*, int, char*);
 DLLExport void NetworkDisconnect(Network*);
 
 #endif

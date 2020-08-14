@@ -121,6 +121,9 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 void NetworkInit(Network* n)
 {
 	n->my_socket = 0;
+#if defined(MQTT_WEBSOCKET)
+	n->len = 0;
+#endif
 	n->mqttread = linux_read;
 	n->mqttwrite = linux_write;
 }
@@ -251,7 +254,311 @@ fail:
 #endif
 
 
-int NetworkConnect(Network* n, char* addr, int port)
+#if defined(MQTT_WEBSOCKET)
+
+
+enum {
+	WS_TEXT = 1,
+	WS_BINARY = 2,
+	WS_CLOSE = 8,
+	WS_PING = 9,
+	WS_PONG = 0xA,
+};
+
+
+typedef struct Header {
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		uint8_t opcode:4;
+		uint8_t rsv3:1;
+		uint8_t rsv2:1;
+		uint8_t rsv1:1;
+		uint8_t fin:1;
+
+		uint8_t len:7;
+		uint8_t ismasked:1;
+#else
+		uint8_t fin:1;
+		uint8_t rsv1:1;
+		uint8_t rsv2:1;
+		uint8_t rsv3:1;
+		uint8_t opcode:4;
+
+		uint8_t ismasked:1;
+		uint8_t len:7;
+#endif
+	} __attribute((packed));
+	union {
+		uint16_t len16;
+		uint64_t len64;
+	};
+	uint32_t mask;
+} Header;
+
+
+static void websocket_mask(unsigned char *p, size_t len, uint32_t mask)
+{
+	size_t i;
+	union {
+		uint32_t u32;
+		uint8_t u8[4];
+	} masku = {.u32 = mask};
+
+	for (i = 0; i < len; ++i)
+		p[i] = p[i] ^ masku.u8[i % 4];
+}
+
+
+static int websocket_write_frame(Network* n, int opcode, unsigned char* buffer, int len, int timeout_ms)
+{
+	struct Header hdr = {
+		.fin = 1,
+		.opcode = opcode,
+		.ismasked = 1,
+		.mask = 0x94015cfb,
+	};
+	int rc;
+
+	if (len > UINT16_MAX)
+	{
+		hdr.len = 127;
+		hdr.len64 = htobe64((uint64_t)len);
+	}
+	else if (len > 126)
+	{
+		hdr.len = 126;
+		hdr.len16 = htons((uint16_t)len);
+	}
+	else
+		hdr.len = (uint8_t)len;
+
+	websocket_mask(buffer, len, hdr.mask);
+
+	rc = linux_write(n, (unsigned char*)&hdr, 2, 0);
+	if (rc != 2)
+		return rc;
+
+	switch (hdr.len)
+	{
+		case 126:
+			rc = linux_write(n, (unsigned char*)&hdr.len16, sizeof(hdr.len16), 0);
+			if (rc != sizeof(hdr.len16))
+				return rc;
+			break;
+
+		case 127:
+			rc = linux_write(n, (unsigned char*)&hdr.len64, sizeof(hdr.len64), 0);
+			if (rc != sizeof(hdr.len64))
+				return rc;
+			break;
+	}
+
+	if (hdr.ismasked)
+	{
+		rc = linux_write(n, (unsigned char*)&hdr.mask, sizeof(hdr.mask), 0);
+		if (rc != sizeof(hdr.mask))
+			return rc;
+	}
+
+	return linux_write(n, buffer, len, 0);
+}
+
+
+static int websocket_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
+{
+    return websocket_write_frame(n, WS_BINARY, buffer, len, timeout_ms);
+}
+
+
+static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int timeout_ms, int *opcode)
+{
+	struct Header hdr;
+	int total = 0, rc;
+
+	do
+	{
+		if (n->len == 0)
+		{
+			rc = linux_read(n, (unsigned char*)&hdr, 2, timeout_ms);
+			if (rc != 2)
+				return rc;
+
+			switch (hdr.opcode)
+			{
+				case WS_TEXT:
+				case WS_BINARY:
+				case WS_PING:
+				case WS_PONG:
+				case WS_CLOSE:
+					break;
+
+				default:
+					return -1;
+			}
+
+			n->opcode = hdr.opcode;
+			n->len = (int)hdr.len;
+
+			switch (hdr.len)
+			{
+				case 126:
+					rc = linux_read(n, (unsigned char*)&hdr.len16, sizeof(hdr.len16), timeout_ms);
+					if (rc != sizeof(hdr.len16))
+						return rc;
+
+					n->len = (int)ntohs(hdr.len16);
+					break;
+
+				case 127:
+					rc = linux_read(n, (unsigned char*)&hdr.len64, sizeof(hdr.len64), timeout_ms);
+					if (rc != sizeof(hdr.len64))
+						return -1;
+
+					if (be64toh(hdr.len64) > INT_MAX)
+						return -1;
+
+					n->len = (int)be64toh(hdr.len64);
+					break;
+			}
+
+			if (n->len == 0)
+				return -1;
+
+			if (hdr.ismasked)
+			{
+				rc = linux_read(n, (unsigned char*)&hdr.mask, sizeof(hdr.mask), timeout_ms);
+				if (rc != sizeof(hdr.mask))
+					return rc;
+			}
+
+			n->mask = hdr.mask;
+			n->ismasked = hdr.ismasked;
+		}
+
+		if (len < n->len)
+			rc = linux_read(n, buffer + total, len, timeout_ms);
+		else
+			rc = linux_read(n, buffer + total, n->len, timeout_ms);
+
+		if (rc <= 0)
+			return rc;
+
+		total += rc;
+		len -= rc;
+		n->len -= rc;
+	}
+	while (len > 0);
+
+	if (n->ismasked)
+		websocket_mask(buffer, total, n->mask);
+
+	*opcode = n->opcode;
+
+	return total;
+}
+
+
+static int websocket_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
+{
+	int rc, opcode;
+
+	while (1)
+	{
+		rc = websocket_read_frame(n, buffer, len, timeout_ms, &opcode);
+		if (rc <= 0)
+			return rc;
+
+		switch (opcode)
+		{
+			case WS_BINARY:
+			case WS_TEXT:
+				return rc;
+
+			case WS_PING:
+				rc = websocket_write_frame(n, WS_PONG, buffer, len, timeout_ms);
+				if (rc <= 0)
+					return rc;
+				break;
+
+			case WS_CLOSE:
+				return 0;
+		}
+	}
+}
+
+
+static const char websocket_upgrade_fmt[] = \
+    "GET %s HTTP/1.1\r\n"
+    "Host: %s\r\n"
+    "Upgrade: websocket\r\n"
+    "Connection: Upgrade\r\n"
+    "Sec-WebSocket-Key: %s\r\n"
+    "Sec-WebSocket-Version: 13\r\n"
+    "\r\n";
+
+
+int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
+{
+	static unsigned char buf[1024];
+	int out, rc;
+
+	// TODO: randomize the key
+	out = snprintf((char*)buf, sizeof(buf), websocket_upgrade_fmt, uri, addr, "x3JJHMbDL1EzLkh9GBhXDw==");
+	if ((out <= 0) || (out >= sizeof(buf)))
+		return -1;
+
+	rc = linux_write(n, buf, out, 0);
+	if (rc != out)
+		return rc;
+
+	while (1)
+	{
+again:
+		do
+		{
+			rc = linux_read(n, buf, 1, 0);
+			if (rc != 1)
+				return rc;
+		}
+		while (buf[0] != '\r');
+
+		rc = linux_read(n, buf, 1, 0);
+		if (rc != 1)
+			return rc;
+
+		if (buf[0] != '\n')
+			goto again;
+
+		rc = linux_read(n, buf, 1, 0);
+		if (rc != 1)
+			return rc;
+
+		if (buf[0] != '\r')
+			goto again;
+
+		rc = linux_read(n, buf, 1, 0);
+		if (rc != 1)
+			return rc;
+
+		if (buf[0] != '\n')
+			goto again;
+
+		break;
+	}
+
+	// TODO: validate Sec-WebSocket-Accept
+
+	n->mqttread = websocket_read;
+	n->mqttwrite = websocket_write;
+
+	return 0;
+}
+
+
+#endif
+
+
+int NetworkConnectURI(Network* n, char* addr, int port, char* uri)
 {
 	int rc = -1;
 	struct addrinfo *result = NULL;
@@ -272,23 +579,30 @@ int NetworkConnect(Network* n, char* addr, int port)
 				continue;
 
 			n->my_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
 			if (n->my_socket != -1) {
 				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
-				if (rc == 0) {
-#if defined(MQTT_SSL)
-					rc = NetworkConnectSSL(n, addr);
-					if (rc == 0)
-#else
-					if (1)
-#endif
-					{
-						tv.tv_sec = 0;
-						setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
-						break;
-					}
-				}
+				if (rc != 0)
+					goto fail;
 
+#if defined(MQTT_SSL)
+				rc = NetworkConnectSSL(n, addr);
+				if (rc != 0)
+					goto fail;
+#endif
+
+#if defined(MQTT_WEBSOCKET)
+				rc = NetworkConnectWebSocket(n, addr, uri);
+				if (rc != 0)
+					goto fail;
+#endif
+
+				tv.tv_sec = 0;
+				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+				break;
+
+fail:
 				close(n->my_socket);
 				n->my_socket = -1;
 			}
@@ -298,6 +612,12 @@ int NetworkConnect(Network* n, char* addr, int port)
 	}
 
 	return rc;
+}
+
+
+int NetworkConnect(Network* n, char* addr, int port)
+{
+    return NetworkConnectURI(n, addr, port, "/");
 }
 
 
