@@ -44,6 +44,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <endian.h>
+#include <time.h>
 
 #include <stdlib.h>
 #include <string.h>

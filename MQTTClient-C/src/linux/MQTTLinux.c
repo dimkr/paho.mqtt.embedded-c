@@ -497,13 +497,26 @@ static const char websocket_upgrade_fmt[] = \
     "\r\n";
 
 
+#include <mbedtls/base64.h>
+
+
 int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
 {
 	static unsigned char buf[1024];
-	int out, rc;
+	unsigned char key[16], b64[25];
+	size_t len;
+	int out, rc, i;
+	unsigned int seed;
 
-	// TODO: randomize the key
-	out = snprintf((char*)buf, sizeof(buf), websocket_upgrade_fmt, uri, addr, "x3JJHMbDL1EzLkh9GBhXDw==");
+	seed = (unsigned int)time(NULL);
+	for (i = 0; i < sizeof(key); ++i)
+		key[i] = (unsigned char)(rand_r(&seed) & 0xFF);
+
+	if (mbedtls_base64_encode(b64, sizeof(b64), &len, key, sizeof(key)) != 0)
+		return -1;
+	b64[len] = '\0';
+
+	out = snprintf((char*)buf, sizeof(buf), websocket_upgrade_fmt, uri, addr, b64);
 	if ((out <= 0) || (out >= sizeof(buf)))
 		return -1;
 
