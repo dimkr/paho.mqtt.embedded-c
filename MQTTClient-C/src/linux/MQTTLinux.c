@@ -501,14 +501,18 @@ static const char websocket_upgrade_fmt[] = \
 
 
 #include <mbedtls/base64.h>
+#include <mbedtls/sha1.h>
 
 
 int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
 {
 	static unsigned char buf[1024];
-	unsigned char key[16], b64[25];
+	static char line[128];
+	static const unsigned char tail[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	unsigned char key[16], b64[25], sha1[20], accept[32];
+	mbedtls_sha1_context ctx;
 	size_t len;
-	int out, rc, i;
+	int out, rc, i, validated = 0;
 	unsigned int seed;
 
 	seed = (unsigned int)time(NULL);
@@ -518,6 +522,20 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
 	if (mbedtls_base64_encode(b64, sizeof(b64), &len, key, sizeof(key)) != 0)
 		return -1;
 	b64[len] = '\0';
+
+	mbedtls_sha1_init(&ctx);
+	if ((mbedtls_sha1_starts_ret(&ctx) != 0) ||
+	    (mbedtls_sha1_update_ret(&ctx, b64, len) != 0) ||
+	    (mbedtls_sha1_update_ret(&ctx, tail, sizeof(tail) - 1) != 0) ||
+	    (mbedtls_sha1_finish_ret(&ctx, sha1) != 0))
+	{
+		mbedtls_sha1_free(&ctx);
+		return -1;
+	}
+	mbedtls_sha1_free(&ctx);
+
+	if (mbedtls_base64_encode(accept, sizeof(accept), &len, sha1, sizeof(sha1)) != 0)
+		return -1;
 
 	out = snprintf((char*)buf, sizeof(buf), websocket_upgrade_fmt, uri, addr, b64);
 	if ((out <= 0) || (out >= sizeof(buf)))
@@ -529,40 +547,39 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri)
 
 	while (1)
 	{
-again:
-		do
+next:
+		for (i = 0; i < sizeof(line); ++i)
 		{
-			rc = linux_read(n, buf, 1, 0);
+			// TODO: read with timeout
+			rc = linux_read(n, (unsigned char*)&line[i], 1, 0);
 			if (rc != 1)
 				return rc;
+
+			if ((i > 0) && (line[i - 1] == '\r') && (line[i] == '\n')) {
+				if (i == 1)
+					goto done;
+
+				if ((i != sizeof("Sec-WebSocket-Accept: ") + len) ||
+				    (memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
+					goto next;
+
+				if (validated)
+					return -1;
+
+				if (memcmp(&line[sizeof("Sec-WebSocket-Accept: ") - 1], accept, len) != 0)
+					return -1;
+
+				validated = 1;
+				goto next;
+			}
 		}
-		while (buf[0] != '\r');
 
-		rc = linux_read(n, buf, 1, 0);
-		if (rc != 1)
-			return rc;
-
-		if (buf[0] != '\n')
-			goto again;
-
-		rc = linux_read(n, buf, 1, 0);
-		if (rc != 1)
-			return rc;
-
-		if (buf[0] != '\r')
-			goto again;
-
-		rc = linux_read(n, buf, 1, 0);
-		if (rc != 1)
-			return rc;
-
-		if (buf[0] != '\n')
-			goto again;
-
-		break;
+		return -1;
 	}
 
-	// TODO: validate Sec-WebSocket-Accept
+done:
+	if (!validated)
+		return -1;
 
 	n->mqttread = websocket_read;
 	n->mqttwrite = websocket_write;
