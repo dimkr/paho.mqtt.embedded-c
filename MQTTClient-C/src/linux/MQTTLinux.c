@@ -650,7 +650,7 @@ fail:
 
 int NetworkConnect(Network* n, char* addr, int port)
 {
-	return NetworkConnectURI(n, addr, port, "/", 0);
+	return NetworkConnectURI(n, addr, port, "/", 1000);
 }
 
 
