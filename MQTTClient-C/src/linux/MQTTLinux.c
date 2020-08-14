@@ -555,23 +555,24 @@ next:
 			if (rc != 1)
 				return rc;
 
-			if ((i > 0) && (line[i - 1] == '\r') && (line[i] == '\n')) {
-				if (i == 1)
-					goto done;
+			if ((i == 0) || (line[i - 1] != '\r') || (line[i] != '\n'))
+				continue;
 
-				if ((i != sizeof("Sec-WebSocket-Accept: ") + len) ||
-				    (memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
-					goto next;
+			if (i == 1)
+				goto done;
 
-				if (validated)
-					return -1;
-
-				if (memcmp(&line[sizeof("Sec-WebSocket-Accept: ") - 1], accept, len) != 0)
-					return -1;
-
-				validated = 1;
+			if ((i != sizeof("Sec-WebSocket-Accept: ") + len) ||
+				(memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
 				goto next;
-			}
+
+			if (validated)
+				return -1;
+
+			if (memcmp(&line[sizeof("Sec-WebSocket-Accept: ") - 1], accept, len) != 0)
+				return -1;
+
+			validated = 1;
+			goto next;
 		}
 
 		return -1;
