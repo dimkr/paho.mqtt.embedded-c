@@ -315,9 +315,9 @@ static int websocket_write_frame(Network* n, int opcode, unsigned char* buffer, 
 		.fin = 1,
 		.opcode = opcode,
 		.ismasked = 1,
-		.mask = 0x94015cfb,
 	};
 	int rc;
+	unsigned int seed;
 
 	if (len > UINT16_MAX)
 	{
@@ -331,6 +331,9 @@ static int websocket_write_frame(Network* n, int opcode, unsigned char* buffer, 
 	}
 	else
 		hdr.len = (uint8_t)len;
+
+	seed = (unsigned int)time(NULL);
+	hdr.mask = (uint32_t)(rand_r(&seed) & 0xFFFFFFFF);
 
 	websocket_mask(buffer, len, hdr.mask);
 
