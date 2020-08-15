@@ -512,7 +512,7 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri, int timeout_ms)
 	unsigned char key[16], b64[25], sha1[20], accept[32];
 	mbedtls_sha1_context ctx;
 	size_t len;
-	int out, rc, i, validated = 0;
+	int out, rc, i, validated = 0, lines = 0;
 	unsigned int seed;
 
 	seed = (unsigned int)time(NULL);
@@ -545,12 +545,11 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri, int timeout_ms)
 	if (rc != out)
 		return rc;
 
-	while (1)
+	while (lines < 32)
 	{
 next:
 		for (i = 0; i < sizeof(line); ++i)
 		{
-			// TODO: read with timeout
 			rc = linux_read(n, (unsigned char*)&line[i], 1, timeout_ms);
 			if (rc != 1)
 				return rc;
@@ -561,7 +560,15 @@ next:
 			if (i == 1)
 				goto done;
 
-			if ((i != sizeof("Sec-WebSocket-Accept: ") + len) ||
+			--i;
+
+			if ((lines == 0) &&
+			    ((i < sizeof("HTTP/1.1 101") - 1) || (memcmp(line, "HTTP/1.1 101", sizeof("HTTP/1.1 101") - 1) != 0)))
+				return -1;
+
+			++lines;
+
+			if ((i != sizeof("Sec-WebSocket-Accept: ") - 1 + len) ||
 				(memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
 				goto next;
 
@@ -579,7 +586,7 @@ next:
 	}
 
 done:
-	if (!validated)
+	if ((lines < 2) || !validated)
 		return -1;
 
 	n->mqttread = websocket_read;
