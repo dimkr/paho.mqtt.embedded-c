@@ -324,7 +324,7 @@ static int websocket_write_frame(Network* n, int opcode, unsigned char* buffer, 
 		hdr.len = 127;
 		hdr.len64 = htobe64((uint64_t)len);
 	}
-	else if (len > 126)
+	else if (len > 125)
 	{
 		hdr.len = 126;
 		hdr.len16 = htons((uint16_t)len);
