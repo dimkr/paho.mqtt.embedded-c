@@ -207,6 +207,12 @@ DLLExport int MQTTUnsubscribe(MQTTClient* client, const char* topicFilter);
  */
 DLLExport int MQTTDisconnect(MQTTClient* client);
 
+/** MQTT Keepalive - check if the MQTT server responds to ping packets.
+ *  @param client - the client object to use
+ *  @return success code
+ */
+DLLExport int MQTTKeepalive(MQTTClient* c);
+
 /** MQTT Yield - MQTT background
  *  @param client - the client object to use
  *  @param time - the time, in milliseconds, to yield for
