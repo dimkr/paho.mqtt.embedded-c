@@ -497,6 +497,7 @@ static const char websocket_upgrade_fmt[] = \
     "Connection: Upgrade\r\n"
     "Sec-WebSocket-Key: %s\r\n"
     "Sec-WebSocket-Version: 13\r\n"
+    "Sec-WebSocket-Protocol: mqtt\r\n"
     "\r\n";
 
 
