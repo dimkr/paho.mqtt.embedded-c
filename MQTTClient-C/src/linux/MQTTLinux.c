@@ -462,13 +462,13 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 
 static int websocket_keepalive(Network* n, int timeout_ms)
 {
-	unsigned char ping[] = {'M', 'Q', 'T', 'T'};
+	unsigned char p = 'P';
 	int rc;
 
 	if (n->ping_outstanding)
 		return -1;
 
-	rc = websocket_write_frame(n, WS_PING, ping, sizeof(ping), timeout_ms);
+	rc = websocket_write_frame(n, WS_PING, &p, sizeof(p), timeout_ms);
 	if (rc <= 0)
 		return rc;
 
@@ -479,7 +479,6 @@ static int websocket_keepalive(Network* n, int timeout_ms)
 
 static int websocket_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 {
-	static const unsigned char ping[] = {'M', 'Q', 'T', 'T'};
 	int rc, opcode;
 
 	while (1)
@@ -500,9 +499,7 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 				break;
 
 			case WS_PONG:
-				if (n->ping_outstanding &&
-				    (rc == sizeof(ping)) &&
-				    (memcmp(buffer, ping, sizeof(ping)) == 0))
+				if (n->ping_outstanding && (rc == 1) && (buffer[0] == 'P'))
 					n->ping_outstanding = 0;
 				break;
 
