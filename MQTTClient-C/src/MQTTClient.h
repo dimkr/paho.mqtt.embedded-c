@@ -209,9 +209,10 @@ DLLExport int MQTTDisconnect(MQTTClient* client);
 
 /** MQTT Keepalive - check if the MQTT server responds to ping packets.
  *  @param client - the client object to use
+ *  @param timeout_ms - timeout in milliseconds
  *  @return success code
  */
-DLLExport int MQTTKeepalive(MQTTClient* c);
+DLLExport int MQTTKeepalive(MQTTClient* c, int timeout_ms);
 
 /** MQTT Yield - MQTT background
  *  @param client - the client object to use
