@@ -513,7 +513,7 @@ int NetworkConnectWebSocket(Network* n, char* addr, char* uri, int timeout_ms)
 	unsigned char key[16], b64[25], sha1[20], accept[32];
 	mbedtls_sha1_context ctx;
 	size_t len;
-	int out, rc, i, validated = 0, lines = 0;
+	int out, rc, i, validated = 0, lines = 0, mqtt = 0;
 	unsigned int seed;
 
 	seed = (unsigned int)time(NULL);
@@ -569,6 +569,20 @@ next:
 
 			++lines;
 
+			if ((i >= sizeof("Sec-WebSocket-Protocol:") - 1) &&
+			    (memcmp(line, "Sec-WebSocket-Protocol:", sizeof("Sec-WebSocket-Protocol:") - 1) == 0))
+			{
+				if (mqtt)
+					return -1;
+
+				if ((i != sizeof("Sec-WebSocket-Protocol: mqtt") - 1) ||
+				    (memcmp(&line[sizeof("Sec-WebSocket-Protocol: ") - 1], "mqtt", sizeof("mqtt") - 1) != 0))
+					return -1;
+
+				mqtt = 1;
+				goto next;
+			}
+
 			if ((i != sizeof("Sec-WebSocket-Accept: ") - 1 + len) ||
 				(memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
 				goto next;
@@ -587,7 +601,7 @@ next:
 	}
 
 done:
-	if ((lines < 2) || !validated)
+	if ((lines < 2) || !mqtt || !validated)
 		return -1;
 
 	n->mqttread = websocket_read;
