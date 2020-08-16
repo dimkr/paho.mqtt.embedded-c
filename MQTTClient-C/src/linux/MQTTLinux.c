@@ -258,7 +258,6 @@ fail:
 
 
 enum {
-	WS_TEXT = 1,
 	WS_BINARY = 2,
 	WS_CLOSE = 8,
 	WS_PING = 9,
@@ -388,7 +387,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 
 			switch (hdr.opcode)
 			{
-				case WS_TEXT:
 				case WS_BINARY:
 				case WS_PING:
 				case WS_PONG:
@@ -474,7 +472,6 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 		switch (opcode)
 		{
 			case WS_BINARY:
-			case WS_TEXT:
 				return rc;
 
 			case WS_PING:
@@ -483,8 +480,14 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 					return rc;
 				break;
 
+			case WS_PONG:
+				break;
+
 			case WS_CLOSE:
 				return 0;
+
+			default:
+				return -1;
 		}
 	}
 }
