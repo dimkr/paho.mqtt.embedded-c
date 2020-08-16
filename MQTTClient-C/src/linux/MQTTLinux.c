@@ -121,11 +121,12 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 void NetworkInit(Network* n)
 {
 	n->my_socket = 0;
+	n->mqttread = linux_read;
+	n->mqttwrite = linux_write;
+	n->mqttkeepalive = NULL;
 #if defined(MQTT_WEBSOCKET)
 	n->len = 0;
 #endif
-	n->mqttread = linux_read;
-	n->mqttwrite = linux_write;
 }
 
 
@@ -459,8 +460,26 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 }
 
 
+static int websocket_keepalive(Network* n, int timeout_ms)
+{
+	unsigned char ping[] = {'M', 'Q', 'T', 'T'};
+	int rc;
+
+	if (n->ping_outstanding)
+		return -1;
+
+	rc = websocket_write_frame(n, WS_PING, ping, sizeof(ping), timeout_ms);
+	if (rc <= 0)
+		return rc;
+
+	n->ping_outstanding = 1;
+	return rc;
+}
+
+
 static int websocket_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 {
+	static const unsigned char ping[] = {'M', 'Q', 'T', 'T'};
 	int rc, opcode;
 
 	while (1)
@@ -481,6 +500,10 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 				break;
 
 			case WS_PONG:
+				if (n->ping_outstanding &&
+				    (rc == sizeof(ping)) &&
+				    (memcmp(buffer, ping, sizeof(ping)) == 0))
+					n->ping_outstanding = 0;
 				break;
 
 			case WS_CLOSE:
@@ -567,7 +590,8 @@ next:
 			--i;
 
 			if ((lines == 0) &&
-			    ((i < sizeof("HTTP/1.1 101") - 1) || (memcmp(line, "HTTP/1.1 101", sizeof("HTTP/1.1 101") - 1) != 0)))
+			    ((i < sizeof("HTTP/1.1 101") - 1) ||
+			     (memcmp(line, "HTTP/1.1 101", sizeof("HTTP/1.1 101") - 1) != 0)))
 				return -1;
 
 			++lines;
@@ -609,6 +633,7 @@ done:
 
 	n->mqttread = websocket_read;
 	n->mqttwrite = websocket_write;
+	n->mqttkeepalive = websocket_keepalive;
 
 	return 0;
 }
