@@ -221,8 +221,10 @@ int MQTTKeepalive(MQTTClient* c, int timeout_ms)
     {
         if (c->ipstack->mqttkeepalive)
         {
-            if (c->ipstack->mqttkeepalive(c->ipstack, timeout_ms) <= 0)
+            if (c->ipstack->mqttkeepalive(c->ipstack, timeout_ms, c->keepAliveInterval) <= 0)
                 rc = FAILURE;
+            TimerCountdown(&c->last_sent, c->keepAliveInterval);
+            TimerCountdown(&c->last_received, c->keepAliveInterval);
             goto exit;
         }
 
