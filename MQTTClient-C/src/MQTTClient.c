@@ -209,7 +209,7 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
 }
 
 
-int MQTTKeepalive(MQTTClient* c)
+int MQTTKeepalive(MQTTClient* c, int timeout_ms)
 {
     int rc = SUCCESS;
 
@@ -220,7 +220,7 @@ int MQTTKeepalive(MQTTClient* c)
     {
         if (c->ipstack->mqttkeepalive)
         {
-            if (c->ipstack->mqttkeepalive(c->ipstack, 1000) <= 0)
+            if (c->ipstack->mqttkeepalive(c->ipstack, timeout_ms) <= 0)
                 rc = FAILURE;
             goto exit;
         }
@@ -331,7 +331,7 @@ int cycle(MQTTClient* c, Timer* timer)
             break;
     }
 
-    if (MQTTKeepalive(c) != SUCCESS) {
+    if (MQTTKeepalive(c, TimerLeftMS(timer)) != SUCCESS) {
         //check only keepalive FAILURE status so that previous FAILURE status can be considered as FAULT
         rc = FAILURE;
     }
