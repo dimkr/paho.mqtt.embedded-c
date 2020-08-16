@@ -125,6 +125,8 @@ void NetworkInit(Network* n)
 	n->mqttwrite = linux_write;
 	n->mqttkeepalive = NULL;
 #if defined(MQTT_WEBSOCKET)
+	TimerInit(&n->last_ping);
+	n->ping_outstanding = 0;
 	n->len = 0;
 #endif
 }
@@ -460,19 +462,25 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 }
 
 
-static int websocket_keepalive(Network* n, int timeout_ms)
+static int websocket_keepalive(Network* n, int timeout_ms, int keepAliveInterval)
 {
 	unsigned char p = 'P';
 	int rc;
 
 	if (n->ping_outstanding)
-		return -1;
+	{
+		if (TimerIsExpired(&n->last_ping))
+			return -1;
+
+		return 1;
+	}
 
 	rc = websocket_write_frame(n, WS_PING, &p, sizeof(p), timeout_ms);
 	if (rc <= 0)
 		return rc;
 
 	n->ping_outstanding = 1;
+	TimerCountdown(&n->last_ping, keepAliveInterval);
 	return rc;
 }
 

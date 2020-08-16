@@ -80,6 +80,7 @@ typedef struct Network
   #endif
 #endif
 #if defined(MQTT_WEBSOCKET)
+	Timer last_ping;
 	int ping_outstanding;
 	int opcode;
 	int len;
@@ -89,7 +90,7 @@ typedef struct Network
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
 	int (*mqttwrite) (struct Network*, unsigned char*, int, int);
-	int (*mqttkeepalive) (struct Network*, int);
+	int (*mqttkeepalive) (struct Network*, int, int);
 } Network;
 
 int linux_read(Network*, unsigned char*, int, int);
