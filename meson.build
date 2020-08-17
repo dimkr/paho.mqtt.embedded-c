@@ -25,6 +25,10 @@ libpaho_embed_mqtt3c_cflags = [
     '-DMQTTCLIENT_PLATFORM_HEADER=MQTTLinux.h',
 ]
 
+if host_machine.endian() == 'big'
+    libpaho_embed_mqtt3c_cflags += ['-DREVERSED']
+endif
+
 libpaho_embed_mqtt3c_dependencies = []
 
 default_library = get_option('default_library')
