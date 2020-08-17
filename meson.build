@@ -88,6 +88,12 @@ if get_option('websocket')
     endif
 endif
 
+cc = meson.get_compiler('c')
+
+librt = cc.find_library('rt')
+
+libpaho_embed_mqtt3c_dependencies = []
+
 if default_library != 'static'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
 
@@ -95,6 +101,7 @@ if default_library != 'static'
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
+                                          dependencies: librt,
                                           gnu_symbol_visibility: 'hidden',
                                           soversion: 1,
                                           dependencies: libpaho_embed_mqtt33_dependencies,
@@ -106,11 +113,13 @@ else
                                           c_args: libpaho_embed_mqtt3c_cflags,
                                           dependencies: libpaho_embed_mqtt33_dependencies,
                                           install: not meson.is_subproject())
+    libpaho_embed_mqtt3c_dependencies += librt
 endif
 
 libpaho_embed_mqtt3c_dependency = declare_dependency(include_directories: libpaho_embed_mqtt3c_includes,
                                                      link_with: libpaho_embed_mqtt3c,
-                                                     compile_args: libpaho_embed_mqtt3c_cflags)
+                                                     compile_args: libpaho_embed_mqtt3c_cflags,
+                                                     dependencies: libpaho_embed_mqtt3c_dependencies)
 
 if not meson.is_subproject()
     foreach name: ['pub0sub1', 'qos0pub']
