@@ -25,7 +25,7 @@ libpaho_embed_mqtt3c_cflags = [
     '-DMQTTCLIENT_PLATFORM_HEADER=MQTTLinux.h',
 ]
 
-libpaho_embed_mqtt33_dependencies = []
+libpaho_embed_mqtt3c_dependencies = []
 
 default_library = get_option('default_library')
 
@@ -55,7 +55,7 @@ if ssl
 
     libpaho_embed_mqtt3c_cflags += ['-DMQTT_SSL']
     libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
-    libpaho_embed_mqtt33_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
+    libpaho_embed_mqtt3c_dependencies += [libmbedtls, libmbedx509, libmbedcrypto]
 
     if get_option('ssl_verify')
         libpaho_embed_mqtt3c_cflags += ['-DMQTT_SSL_VERIFY']
@@ -84,7 +84,7 @@ if get_option('websocket')
         libmbedcrypto = mbedtls.dependency('mbedcrypto')
 
         libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
-        libpaho_embed_mqtt33_dependencies += [libmbedcrypto]
+        libpaho_embed_mqtt3c_dependencies += [libmbedcrypto]
     endif
 endif
 
@@ -92,26 +92,24 @@ cc = meson.get_compiler('c')
 
 librt = cc.find_library('rt')
 
-libpaho_embed_mqtt3c_dependencies = []
-
 if default_library != 'static'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
+    libpaho_embed_mqtt3c_dependencies += [librt]
 
     libpaho_embed_mqtt3c = shared_library('paho-embed-mqtt3c',
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
-                                          dependencies: librt,
                                           gnu_symbol_visibility: 'hidden',
                                           soversion: 1,
-                                          dependencies: libpaho_embed_mqtt33_dependencies,
+                                          dependencies: libpaho_embed_mqtt3c_dependencies,
                                           install: true)
 else
     libpaho_embed_mqtt3c = static_library('paho-embed-mqtt3c',
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
-                                          dependencies: libpaho_embed_mqtt33_dependencies,
+                                          dependencies: libpaho_embed_mqtt3c_dependencies,
                                           install: not meson.is_subproject())
     libpaho_embed_mqtt3c_dependencies += librt
 endif
