@@ -110,7 +110,11 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 #if defined(MQTT_SSL)
 	int rc = mbedtls_ssl_write(&n->ssl, buffer, len);
 	if (rc < 0)
-		return -1;
+	{
+		if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE))
+			return -1;
+		return 0;
+	}
 #else
 	int	rc = write(n->my_socket, buffer, len);
 #endif
