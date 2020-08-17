@@ -45,7 +45,7 @@ void stop_init(void)
 int main(int argc, char *argv[])
 {
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-	int rc = 0;
+	int rc;
 	int mysock = 0;
 	unsigned char buf[200];
 	int buflen = sizeof(buf);
@@ -56,20 +56,20 @@ int main(int argc, char *argv[])
 	int payloadlen = strlen(payload);
 	int len = 0;
 	char *host = "m2m.eclipse.org";
-	int port = 1883;
+	char *port = "1883";
 
 	stop_init();
 	if (argc > 1)
 		host = argv[1];
 
 	if (argc > 2)
-		port = atoi(argv[2]);
+		port = argv[2];
 
 	mysock = transport_open(host, port);
 	if(mysock < 0)
 		return mysock;
 
-	printf("Sending to hostname %s port %d\n", host, port);
+	printf("Sending to hostname %s port %s\n", host, port);
 
 	data.clientID.cstring = "me";
 	data.keepAliveInterval = 20;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	rc = transport_sendPacketBuffer(mysock, buf, len);
 
 	/* wait for connack */
-	if (MQTTPacket_read(buf, buflen, transport_getdata) == CONNACK)
+	if (rc == len && MQTTPacket_read(buf, buflen, transport_getdata) == CONNACK)
 	{
 		unsigned char sessionPresent, connack_rc;
 
@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
 			unsigned short msgid;
 			int payloadlen_in;
 			unsigned char* payload_in;
-			int rc;
 			MQTTString receivedTopic;
 
 			rc = MQTTDeserialize_publish(&dup, &qos, &retained, &msgid, &receivedTopic,
