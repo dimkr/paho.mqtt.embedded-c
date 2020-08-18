@@ -663,7 +663,7 @@ done:
 
 int NetworkConnectURI(Network* n, char* addr, int port, char* uri, int timeout_ms)
 {
-	int rc = -1;
+	int rc = -1, one = 1;
 	struct addrinfo *result = NULL;
 	struct addrinfo hints = {.ai_socktype = SOCK_STREAM};
 	struct timeval tv = {.tv_sec = 3};
@@ -702,6 +702,7 @@ int NetworkConnectURI(Network* n, char* addr, int port, char* uri, int timeout_m
 
 				tv.tv_sec = 0;
 				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+				setsockopt(n->my_socket, SOL_TCP, TCP_NODELAY, (char *)&one,sizeof(one));
 				break;
 
 fail:
