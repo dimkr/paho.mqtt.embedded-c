@@ -161,7 +161,7 @@ static void NetworkDisconnectSSL(Network* n)
 }
 
 
-static int ssl_recv(void *ctx, unsigned char *buf, size_t len)
+static int ssl_recv(void* ctx, unsigned char* buf, size_t len)
 {
 	int s = (int)(intptr_t)ctx;
 	ssize_t rc;
@@ -179,7 +179,7 @@ static int ssl_recv(void *ctx, unsigned char *buf, size_t len)
 }
 
 
-static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
+static int ssl_send(void* ctx, const unsigned char* buf, size_t len)
 {
 	int s = (int)(intptr_t)ctx;
 	ssize_t rc;
@@ -197,7 +197,7 @@ static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
 }
 
 
-extern const unsigned char *ca_certs;
+extern const unsigned char* ca_certs;
 extern const size_t ca_certs_len;
 
 
