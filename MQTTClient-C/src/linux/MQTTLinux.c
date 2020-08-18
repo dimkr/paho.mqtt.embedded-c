@@ -381,6 +381,9 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 			if (rc != 2)
 				return rc;
 
+			if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
+				return -1;
+
 			switch (hdr.opcode)
 			{
 				case WS_BINARY:
@@ -419,9 +422,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 			}
 
 			if (n->len == 0)
-				return -1;
-
-			if (hdr.ismasked)
 				return -1;
 		}
 
