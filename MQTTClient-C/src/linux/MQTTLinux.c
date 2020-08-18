@@ -426,10 +426,9 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		}
 
 		if (len < n->len)
-			rc = linux_read(n, buffer + total, len, timeout_ms);
-		else
-			rc = linux_read(n, buffer + total, n->len, timeout_ms);
+			return -1;
 
+		rc = linux_read(n, buffer + total, n->len, timeout_ms);
 		if (rc <= 0)
 			return rc;
 
