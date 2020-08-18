@@ -110,7 +110,11 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 #if defined(MQTT_SSL)
 	int rc = mbedtls_ssl_write(&n->ssl, buffer, len);
 	if (rc < 0)
-		return -1;
+	{
+		if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE))
+			return -1;
+		return 0;
+	}
 #else
 	int	rc = write(n->my_socket, buffer, len);
 #endif
@@ -147,7 +151,7 @@ static void NetworkDisconnectSSL(Network* n)
 }
 
 
-static int ssl_recv(void *ctx, unsigned char *buf, size_t len)
+static int ssl_recv(void* ctx, unsigned char* buf, size_t len)
 {
 	int s = (int)(intptr_t)ctx;
 	ssize_t rc;
@@ -165,7 +169,7 @@ static int ssl_recv(void *ctx, unsigned char *buf, size_t len)
 }
 
 
-static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
+static int ssl_send(void* ctx, const unsigned char* buf, size_t len)
 {
 	int s = (int)(intptr_t)ctx;
 	ssize_t rc;
@@ -183,7 +187,7 @@ static int ssl_send(void *ctx, const unsigned char *buf, size_t len)
 }
 
 
-extern const unsigned char *ca_certs;
+extern const unsigned char* ca_certs;
 extern const size_t ca_certs_len;
 
 
