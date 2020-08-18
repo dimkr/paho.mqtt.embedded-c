@@ -275,8 +275,8 @@ fail:
 
 
 enum {
+	WS_CONT = 0,
 	WS_BINARY = 2,
-	WS_CLOSE = 8,
 	WS_PING = 9,
 	WS_PONG = 0xA,
 };
@@ -391,12 +391,15 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 			if (rc != 2)
 				return rc;
 
+			if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
+				return -1;
+
 			switch (hdr.opcode)
 			{
 				case WS_BINARY:
+				case WS_CONT:
 				case WS_PING:
 				case WS_PONG:
-				case WS_CLOSE:
 					break;
 
 				default:
@@ -430,15 +433,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 
 			if (n->len == 0)
 				return -1;
-
-			if (hdr.ismasked)
-			{
-				rc = linux_read(n, (unsigned char*)&n->mask, sizeof(n->mask), timeout_ms);
-				if (rc != sizeof(n->mask))
-					return rc;
-			}
-
-			n->ismasked = hdr.ismasked;
 		}
 
 		if (len < n->len)
@@ -454,9 +448,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		n->len -= rc;
 	}
 	while (len > 0);
-
-	if (n->ismasked)
-		websocket_mask(buffer, total, n->mask, buffer);
 
 	*opcode = n->opcode;
 
@@ -500,6 +491,7 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 		switch (opcode)
 		{
 			case WS_BINARY:
+			case WS_CONT:
 				return rc;
 
 			case WS_PING:
@@ -512,9 +504,6 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 				if (n->ping_outstanding && (rc == 1) && (buffer[0] == 'P'))
 					n->ping_outstanding = 0;
 				break;
-
-			case WS_CLOSE:
-				return 0;
 
 			default:
 				return -1;
