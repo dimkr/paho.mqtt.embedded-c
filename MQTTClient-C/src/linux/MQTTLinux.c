@@ -126,7 +126,7 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 		return 0;
 	}
 #else
-	int	rc = write(n->my_socket, buffer, len);
+	int	rc = send(n->my_socket, buffer, len, 0);
 #endif
 	return rc;
 }
