@@ -82,8 +82,6 @@ typedef struct Network
 #if defined(MQTT_WEBSOCKET)
 	Timer last_ping;
 	int ping_outstanding;
-	int opcode;
-	int len;
 #endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
