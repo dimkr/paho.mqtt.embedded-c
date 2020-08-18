@@ -131,6 +131,7 @@ void NetworkInit(Network* n)
 #if defined(MQTT_WEBSOCKET)
 	TimerInit(&n->last_ping);
 	n->ping_outstanding = 0;
+	n->len = 0;
 #endif
 }
 
@@ -370,73 +371,74 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 	struct Header hdr;
 	uint16_t len16;
 	uint64_t len64;
-	int total = 0, rc, avail, first = 1;
+	int total = 0, rc;
 
 	do
 	{
-		rc = linux_read(n, (unsigned char*)&hdr, sizeof(hdr), timeout_ms);
-		if (rc != sizeof(hdr))
+		if (n->len == 0)
 		{
-			if (first)
+			rc = linux_read(n, (unsigned char*)&hdr, sizeof(hdr), timeout_ms);
+			if (rc != sizeof(hdr))
 				return rc;
-			return -1;
-		}
 
-		if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
-			return -1;
+			if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
+				return -1;
 
-		switch (hdr.opcode)
-		{
-			case WS_BINARY:
-			case WS_CONT:
-			case WS_PING:
-			case WS_PONG:
-				break;
+			switch (hdr.opcode)
+			{
+				case WS_BINARY:
+				case WS_CONT:
+				case WS_PING:
+				case WS_PONG:
+					break;
 
-			default:
+				default:
+					return -1;
+			}
+
+			n->opcode = hdr.opcode;
+			n->len = (int)hdr.len;
+
+			switch (hdr.len)
+			{
+				case 126:
+					rc = linux_read(n, (unsigned char*)&len16, sizeof(len16), timeout_ms);
+					if (rc != sizeof(len16))
+						return rc;
+
+					n->len = (int)ntohs(len16);
+					break;
+
+				case 127:
+					rc = linux_read(n, (unsigned char*)&len64, sizeof(len64), timeout_ms);
+					if (rc != sizeof(len64))
+						return -1;
+
+					if (be64toh(len64) > INT_MAX)
+						return -1;
+
+					n->len = (int)be64toh(len64);
+					break;
+			}
+
+			if (n->len == 0)
 				return -1;
 		}
 
-		avail = (int)hdr.len;
-
-		switch (hdr.len)
-		{
-			case 126:
-				if (linux_read(n, (unsigned char*)&len16, sizeof(len16), timeout_ms) != sizeof(len16))
-					return -1;
-
-				avail = (int)ntohs(len16);
-				break;
-
-			case 127:
-				if (linux_read(n, (unsigned char*)&len64, sizeof(len64), timeout_ms) != sizeof(len64))
-					return -1;
-
-				if (be64toh(len64) > INT_MAX)
-					return -1;
-
-				avail = (int)be64toh(len64);
-				break;
-		}
-
-		if (avail == 0)
+		if (len < n->len)
 			return -1;
 
-		if (len < avail)
-			return -1;
+		rc = linux_read(n, buffer + total, n->len, timeout_ms);
+		if (rc <= 0)
+			return rc;
 
-		if (linux_read(n, buffer + total, avail, timeout_ms) != avail)
-			return -1;
-
-		len -= rc;
-
-		if (first)
-			*opcode = hdr.opcode;
-
-		first = 0;
 		total += rc;
+		len -= rc;
+		n->len -= rc;
 	}
-	while ((len > 0) && !hdr.fin);
+	while (len > 0);
+
+	*opcode = n->opcode;
 
 	return total;
 }
