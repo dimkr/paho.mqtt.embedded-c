@@ -378,7 +378,7 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		if (n->len == 0)
 		{
 			rc = linux_read(n, (unsigned char*)&hdr, sizeof(hdr), timeout_ms);
-			if (rc != 2)
+			if (rc != sizeof(hdr))
 				return rc;
 
 			if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
