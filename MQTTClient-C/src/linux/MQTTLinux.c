@@ -371,7 +371,7 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 	struct Header hdr;
 	uint16_t len16;
 	uint64_t len64;
-	int total = 0, rc;
+	int total = 0, rc, first = 1;
 
 	do
 	{
@@ -379,7 +379,11 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		{
 			rc = linux_read(n, (unsigned char*)&hdr, sizeof(hdr), timeout_ms);
 			if (rc != sizeof(hdr))
-				return rc;
+			{
+				if (first)
+					return rc;
+				return -1;
+			}
 
 			if (hdr.rsv1 || hdr.rsv2 || hdr.rsv3 || hdr.ismasked)
 				return -1;
@@ -402,16 +406,14 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 			switch (hdr.len)
 			{
 				case 126:
-					rc = linux_read(n, (unsigned char*)&len16, sizeof(len16), timeout_ms);
-					if (rc != sizeof(len16))
-						return rc;
+					if (linux_read(n, (unsigned char*)&len16, sizeof(len16), timeout_ms) != sizeof(len16))
+						return -1;
 
 					n->len = (int)ntohs(len16);
 					break;
 
 				case 127:
-					rc = linux_read(n, (unsigned char*)&len64, sizeof(len64), timeout_ms);
-					if (rc != sizeof(len64))
+					if (linux_read(n, (unsigned char*)&len64, sizeof(len64), timeout_ms) != sizeof(len64))
 						return -1;
 
 					if (be64toh(len64) > INT_MAX)
@@ -428,17 +430,18 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		if (len < n->len)
 			return -1;
 
-		rc = linux_read(n, buffer + total, n->len, timeout_ms);
-		if (rc <= 0)
-			return rc;
+		if (linux_read(n, buffer + total, n->len, timeout_ms) != n->len)
+			return -1;
 
+		if (first)
+			*opcode = n->opcode;
+
+		first = 0;
 		total += rc;
 		len -= rc;
 		n->len -= rc;
 	}
 	while (len > 0);
-
-	*opcode = n->opcode;
 
 	return total;
 }
