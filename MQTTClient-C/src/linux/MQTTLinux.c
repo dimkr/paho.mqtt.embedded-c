@@ -469,7 +469,7 @@ static int websocket_keepalive(Network* n, int timeout_ms, int keepAliveInterval
 
 static int websocket_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 {
-	int rc, opcode;
+	int rc, opcode = -1;
 
 	while (1)
 	{
