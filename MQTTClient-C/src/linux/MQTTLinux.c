@@ -269,36 +269,29 @@ enum {
 
 
 typedef struct Header {
-	struct {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-		uint8_t opcode:4;
-		uint8_t rsv3:1;
-		uint8_t rsv2:1;
-		uint8_t rsv1:1;
-		uint8_t fin:1;
+	uint8_t opcode:4;
+	uint8_t rsv3:1;
+	uint8_t rsv2:1;
+	uint8_t rsv1:1;
+	uint8_t fin:1;
 
-		uint8_t len:7;
-		uint8_t ismasked:1;
+	uint8_t len:7;
+	uint8_t ismasked:1;
 #else
-		uint8_t fin:1;
-		uint8_t rsv1:1;
-		uint8_t rsv2:1;
-		uint8_t rsv3:1;
-		uint8_t opcode:4;
+	uint8_t fin:1;
+	uint8_t rsv1:1;
+	uint8_t rsv2:1;
+	uint8_t rsv3:1;
+	uint8_t opcode:4;
 
-		uint8_t ismasked:1;
-		uint8_t len:7;
+	uint8_t ismasked:1;
+	uint8_t len:7;
 #endif
-	} __attribute((packed));
-	union {
-		uint16_t len16;
-		uint64_t len64;
-	};
-	uint32_t mask;
-} Header;
+} __attribute__((packed)) Header;
 
 
-static void websocket_mask(unsigned char *p, size_t len, uint32_t mask)
+static void websocket_mask(unsigned char* p, size_t len, uint32_t mask, unsigned char* dst)
 {
 	size_t i;
 	union {
@@ -307,65 +300,59 @@ static void websocket_mask(unsigned char *p, size_t len, uint32_t mask)
 	} masku = {.u32 = mask};
 
 	for (i = 0; i < len; ++i)
-		p[i] = p[i] ^ masku.u8[i % 4];
+		dst[i] = p[i] ^ masku.u8[i % 4];
 }
 
 
 static int websocket_write_frame(Network* n, int opcode, unsigned char* buffer, int len, int timeout_ms)
 {
-	struct Header hdr = {
+	unsigned char* frame, *p;
+	struct Header *hdr;
+	int rc, total;
+	unsigned int seed;
+
+	total = sizeof(*hdr) + sizeof(uint32_t) + len;
+
+	frame = malloc(total + sizeof(uint64_t));
+	if (!frame)
+		return -1;
+
+	hdr = (struct Header*)frame;
+	p = frame + sizeof(*hdr);
+
+	*hdr = (struct Header){
 		.fin = 1,
 		.opcode = opcode,
 		.ismasked = 1,
 	};
-	int rc;
-	unsigned int seed;
 
 	if (len > UINT16_MAX)
 	{
-		hdr.len = 127;
-		hdr.len64 = htobe64((uint64_t)len);
+		hdr->len = 127;
+		*(uint64_t*)p = htobe64((uint64_t)len);
+		p += sizeof(uint64_t);
+		total += sizeof(uint64_t);
 	}
 	else if (len > 125)
 	{
-		hdr.len = 126;
-		hdr.len16 = htons((uint16_t)len);
+		hdr->len = 126;
+		*(uint16_t*)p = htons((uint16_t)len);
+		p += sizeof(uint16_t);
+		total += sizeof(uint16_t);
 	}
 	else
-		hdr.len = (uint8_t)len;
+		hdr->len = (uint8_t)len;
 
 	seed = (unsigned int)time(NULL);
-	hdr.mask = (uint32_t)(rand_r(&seed) & 0xFFFFFFFF);
+	*(uint32_t*)p = (uint32_t)(rand_r(&seed) & 0xFFFFFFFF);
 
-	websocket_mask(buffer, len, hdr.mask);
+	websocket_mask(buffer, len, *(uint32_t*)p, p + sizeof(uint32_t));
 
-	rc = linux_write(n, (unsigned char*)&hdr, 2, 0);
-	if (rc != 2)
-		return rc;
-
-	switch (hdr.len)
-	{
-		case 126:
-			rc = linux_write(n, (unsigned char*)&hdr.len16, sizeof(hdr.len16), 0);
-			if (rc != sizeof(hdr.len16))
-				return rc;
-			break;
-
-		case 127:
-			rc = linux_write(n, (unsigned char*)&hdr.len64, sizeof(hdr.len64), 0);
-			if (rc != sizeof(hdr.len64))
-				return rc;
-			break;
-	}
-
-	if (hdr.ismasked)
-	{
-		rc = linux_write(n, (unsigned char*)&hdr.mask, sizeof(hdr.mask), 0);
-		if (rc != sizeof(hdr.mask))
-			return rc;
-	}
-
-	return linux_write(n, buffer, len, 0);
+	rc = linux_write(n, frame, total, timeout_ms);
+	free(frame);
+	if (rc == total)
+		return len;
+	return rc;
 }
 
 
@@ -378,13 +365,15 @@ static int websocket_write(Network* n, unsigned char* buffer, int len, int timeo
 static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int timeout_ms, int *opcode)
 {
 	struct Header hdr;
+	uint16_t len16;
+	uint64_t len64;
 	int total = 0, rc;
 
 	do
 	{
 		if (n->len == 0)
 		{
-			rc = linux_read(n, (unsigned char*)&hdr, 2, timeout_ms);
+			rc = linux_read(n, (unsigned char*)&hdr, sizeof(hdr), timeout_ms);
 			if (rc != 2)
 				return rc;
 
@@ -406,22 +395,22 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 			switch (hdr.len)
 			{
 				case 126:
-					rc = linux_read(n, (unsigned char*)&hdr.len16, sizeof(hdr.len16), timeout_ms);
-					if (rc != sizeof(hdr.len16))
+					rc = linux_read(n, (unsigned char*)&len16, sizeof(len16), timeout_ms);
+					if (rc != sizeof(len16))
 						return rc;
 
-					n->len = (int)ntohs(hdr.len16);
+					n->len = (int)ntohs(len16);
 					break;
 
 				case 127:
-					rc = linux_read(n, (unsigned char*)&hdr.len64, sizeof(hdr.len64), timeout_ms);
-					if (rc != sizeof(hdr.len64))
+					rc = linux_read(n, (unsigned char*)&len64, sizeof(len64), timeout_ms);
+					if (rc != sizeof(len64))
 						return -1;
 
-					if (be64toh(hdr.len64) > INT_MAX)
+					if (be64toh(len64) > INT_MAX)
 						return -1;
 
-					n->len = (int)be64toh(hdr.len64);
+					n->len = (int)be64toh(len64);
 					break;
 			}
 
@@ -430,12 +419,11 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 
 			if (hdr.ismasked)
 			{
-				rc = linux_read(n, (unsigned char*)&hdr.mask, sizeof(hdr.mask), timeout_ms);
-				if (rc != sizeof(hdr.mask))
+				rc = linux_read(n, (unsigned char*)&n->mask, sizeof(n->mask), timeout_ms);
+				if (rc != sizeof(n->mask))
 					return rc;
 			}
 
-			n->mask = hdr.mask;
 			n->ismasked = hdr.ismasked;
 		}
 
@@ -454,7 +442,7 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 	while (len > 0);
 
 	if (n->ismasked)
-		websocket_mask(buffer, total, n->mask);
+		websocket_mask(buffer, total, n->mask, buffer);
 
 	*opcode = n->opcode;
 
