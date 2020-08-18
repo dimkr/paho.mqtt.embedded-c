@@ -371,7 +371,7 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 	struct Header hdr;
 	uint16_t len16;
 	uint64_t len64;
-	int total = 0, rc, first = 1;
+	int total = 0, rc, first = 1, avail;
 
 	do
 	{
@@ -427,10 +427,12 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 				return -1;
 		}
 
+		avail = n->len;
 		if (len < n->len)
-			return -1;
+			avail = len;
 
-		if (linux_read(n, buffer + total, n->len, timeout_ms) != n->len)
+		rc = linux_read(n, buffer + total, avail, timeout_ms);
+		if (rc != avail)
 			return -1;
 
 		if (first)
