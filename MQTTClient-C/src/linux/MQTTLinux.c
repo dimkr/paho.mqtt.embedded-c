@@ -422,13 +422,7 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 				return -1;
 
 			if (hdr.ismasked)
-			{
-				rc = linux_read(n, (unsigned char*)&n->mask, sizeof(n->mask), timeout_ms);
-				if (rc != sizeof(n->mask))
-					return rc;
-			}
-
-			n->ismasked = hdr.ismasked;
+				return -1;
 		}
 
 		if (len < n->len)
@@ -444,9 +438,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 		n->len -= rc;
 	}
 	while (len > 0);
-
-	if (n->ismasked)
-		websocket_mask(buffer, total, n->mask, buffer);
 
 	*opcode = n->opcode;
 

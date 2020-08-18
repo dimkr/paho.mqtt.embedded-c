@@ -84,8 +84,6 @@ typedef struct Network
 	int ping_outstanding;
 	int opcode;
 	int len;
-	int ismasked;
-	uint32_t mask;
 #endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
