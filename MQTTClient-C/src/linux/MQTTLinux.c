@@ -266,7 +266,6 @@ fail:
 
 enum {
 	WS_BINARY = 2,
-	WS_CLOSE = 8,
 	WS_PING = 9,
 	WS_PONG = 0xA,
 };
@@ -389,7 +388,6 @@ static int websocket_read_frame(Network* n, unsigned char* buffer, int len, int 
 				case WS_BINARY:
 				case WS_PING:
 				case WS_PONG:
-				case WS_CLOSE:
 					break;
 
 				default:
@@ -493,9 +491,6 @@ static int websocket_read(Network* n, unsigned char* buffer, int len, int timeou
 				if (n->ping_outstanding && (rc == 1) && (buffer[0] == 'P'))
 					n->ping_outstanding = 0;
 				break;
-
-			case WS_CLOSE:
-				return 0;
 
 			default:
 				return -1;
