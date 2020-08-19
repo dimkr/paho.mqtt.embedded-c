@@ -597,7 +597,7 @@ next:
 			++lines;
 
 			if ((i >= sizeof("Sec-WebSocket-Protocol:") - 1) &&
-			    (memcmp(line, "Sec-WebSocket-Protocol:", sizeof("Sec-WebSocket-Protocol:") - 1) == 0))
+			    (strncasecmp(line, "Sec-WebSocket-Protocol:", sizeof("Sec-WebSocket-Protocol:") - 1) == 0))
 			{
 				if (mqtt)
 					return -1;
@@ -611,7 +611,7 @@ next:
 			}
 
 			if ((i != sizeof("Sec-WebSocket-Accept: ") - 1 + len) ||
-				(memcmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
+			    (strncasecmp(line, "Sec-WebSocket-Accept: ", sizeof("Sec-WebSocket-Accept: ") - 1) != 0))
 				goto next;
 
 			if (validated)
