@@ -115,47 +115,40 @@ void NetworkInit(Network* n)
 
 int NetworkConnect(Network* n, char* addr, int port)
 {
-	int type = SOCK_STREAM;
-	struct sockaddr_in address;
 	int rc = -1;
-	sa_family_t family = AF_INET;
 	struct addrinfo *result = NULL;
-	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
+	struct addrinfo hints = {.ai_socktype = SOCK_STREAM};
+	struct timeval tv = {.tv_sec = 3};
 
-	if ((rc = getaddrinfo(addr, NULL, &hints, &result)) == 0)
+	if (getaddrinfo(addr, NULL, &hints, &result) == 0)
 	{
-		struct addrinfo* res = result;
+		struct addrinfo* res;
 
-		/* prefer ip4 addresses */
-		while (res)
+		for (res = result; res; res = res->ai_next)
 		{
 			if (res->ai_family == AF_INET)
-			{
-				result = res;
-				break;
-			}
-			res = res->ai_next;
-		}
+				((struct sockaddr_in*)(res->ai_addr))->sin_port = htons(port);
+			else if (res->ai_family == AF_INET6)
+				((struct sockaddr_in6*)(res->ai_addr))->sin6_port = htons(port);
+			else
+				continue;
 
-		if (result->ai_family == AF_INET)
-		{
-			address.sin_port = htons(port);
-			address.sin_family = family = AF_INET;
-			address.sin_addr = ((struct sockaddr_in*)(result->ai_addr))->sin_addr;
+			n->my_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			if (n->my_socket != -1) {
+				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
+				if (rc == 0) {
+					tv.tv_sec = 0;
+					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+					break;
+				}
+
+				close(n->my_socket);
+				n->my_socket = -1;
+			}
 		}
-		else
-			rc = -1;
 
 		freeaddrinfo(result);
-	}
-
-	if (rc == 0)
-	{
-		n->my_socket = socket(family, type, 0);
-		if (n->my_socket != -1)
-			rc = connect(n->my_socket, (struct sockaddr*)&address, sizeof(address));
-		else
-			rc = -1;
 	}
 
 	return rc;
