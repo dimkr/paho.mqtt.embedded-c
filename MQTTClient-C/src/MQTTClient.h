@@ -87,6 +87,7 @@ typedef struct MessageData
 {
     MQTTMessage* message;
     MQTTString* topicName;
+    void* private;
 } MessageData;
 
 typedef struct MQTTConnackData
@@ -110,6 +111,7 @@ typedef struct MQTTClient
       readbuf_size;
     unsigned char *buf,
       *readbuf;
+    void* private;
     unsigned int keepAliveInterval;
     char ping_outstanding;
     int isconnected;

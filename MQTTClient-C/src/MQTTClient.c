@@ -20,9 +20,10 @@
 #include <stdio.h>
 #include <string.h>
 
-static void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessage) {
+static void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessage, void* private) {
     md->topicName = aTopicName;
     md->message = aMessage;
+    md->private = private;
 }
 
 
@@ -190,7 +191,7 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
             if (c->messageHandlers[i].fp != NULL)
             {
                 MessageData md;
-                NewMessageData(&md, topicName, message);
+                NewMessageData(&md, topicName, message, c->private);
                 c->messageHandlers[i].fp(&md);
                 rc = SUCCESS;
             }
@@ -200,7 +201,7 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
     if (rc == FAILURE && c->defaultMessageHandler != NULL)
     {
         MessageData md;
-        NewMessageData(&md, topicName, message);
+        NewMessageData(&md, topicName, message, c->private);
         c->defaultMessageHandler(&md);
         rc = SUCCESS;
     }
