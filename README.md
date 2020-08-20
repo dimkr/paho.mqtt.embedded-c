@@ -4,6 +4,13 @@ This repository contains the source code for the [Eclipse Paho](http://eclipse.o
 
 It is dual licensed under the EPL and EDL (see about.html and notice.html for more details).  You can choose which of these licenses you want to use the code under.  The EDL allows you to embed the code into your application, and distribute your application in binary or source form without contributing any of your code, or any changes you make back to Paho.  See the EDL for the exact conditions.
 
+This is a fork of the library which ignores its C++ portion and adds:
+1. A modernized, [Meson](https://mesonbuild.com/)-based build system
+2. TLS support using [mbedtls](https://tls.mbed.org/) and the [Mozilla CA certificate bundle](https://curl.haxx.se/docs/mk-ca-bundle.html)
+3. WebSocket transport layer support
+4. Various bug fixes and robustness improvements, like the use of monotonic timestamps
+5. Various efficiency enhancements
+
 There are three sub-projects:
 
 1. MQTTPacket - simple de/serialization of MQTT packets, plus helper functions
@@ -48,6 +55,8 @@ The *MQTTClient* API has debug tracing for MQTT packets sent and received - turn
 This project uses GitHub Issues here: [github.com/eclipse/paho.mqtt.embedded-c/issues](https://github.com/eclipse/paho.mqtt.embedded-c/issues) to track ongoing development and issues.
 
 ## More information
+
+This fork is unaffiliated with the [Eclipse Paho](http://eclipse.org/paho) project, the [Eclipse Foundation](https://www.eclipse.org/) and the original authors.
 
 Discussion of the Paho clients takes place on the [Eclipse Mattermost Paho channel](https://mattermost.eclipse.org/eclipse/channels/paho) and the [Eclipse paho-dev mailing list](https://dev.eclipse.org/mailman/listinfo/paho-dev).
 
