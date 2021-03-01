@@ -46,6 +46,10 @@
 #include <string.h>
 #include <signal.h>
 
+#if defined(MQTT_SSL)
+  #include <tls.h>
+#endif
+
 typedef struct Timer
 {
 	struct timeval end_time;
@@ -59,6 +63,10 @@ int TimerLeftMS(Timer*);
 
 typedef struct Network
 {
+#if defined(MQTT_SSL)
+	struct tls *tls;
+	struct tls_config *config;
+#endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
 	int (*mqttwrite) (struct Network*, unsigned char*, int, int);

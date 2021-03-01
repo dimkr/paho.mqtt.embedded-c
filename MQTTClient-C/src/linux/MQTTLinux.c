@@ -73,10 +73,17 @@ int linux_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 	int bytes = 0;
 	while (bytes < len)
 	{
+#if defined(MQTT_SSL)
+		int rc = tls_read(n->tls, &buffer[bytes], (size_t)(len - bytes));
+		if (rc < 0)
+		{
+			if ((rc != TLS_WANT_POLLIN) && (rc != TLS_WANT_POLLOUT))
+#else
 		int rc = recv(n->my_socket, &buffer[bytes], (size_t)(len - bytes), 0);
 		if (rc == -1)
 		{
 			if (errno != EAGAIN && errno != EWOULDBLOCK)
+#endif
 			  bytes = -1;
 			break;
 		}
@@ -100,7 +107,13 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 	tv.tv_usec = timeout_ms * 1000;  // Not init'ing this can cause strange errors
 
 	setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+#if defined(MQTT_SSL)
+	int rc = tls_write(n->tls, buffer, len);
+	if (rc < 0)
+		return -1;
+#else
 	int	rc = write(n->my_socket, buffer, len);
+#endif
 	return rc;
 }
 
@@ -111,6 +124,59 @@ void NetworkInit(Network* n)
 	n->mqttread = linux_read;
 	n->mqttwrite = linux_write;
 }
+
+
+#if defined(MQTT_SSL)
+
+
+static void NetworkDisconnectSSL(Network* n)
+{
+	tls_close(n->tls);
+	tls_free(n->tls);
+	tls_config_free(n->config);
+}
+
+
+extern const unsigned char *ca_certs;
+extern const size_t ca_certs_len;
+
+
+static int NetworkConnectSSL(Network* n, char* addr)
+{
+	tls_init();
+
+	n->config = tls_config_new();
+	if (!n->config)
+		return -1;
+
+	if (tls_config_set_ca_mem(n->config, ca_certs, ca_certs_len) != 0)
+	{
+		tls_config_free(n->config);
+		return -1;
+	}
+
+	n->tls = tls_client();
+	if (!n->tls)
+	{
+		tls_config_free(n->config);
+		return -1;
+	}
+
+	if (tls_configure(n->tls, n->config) != 0)
+		goto fail;
+
+	if (tls_connect_socket(n->tls, n->my_socket, addr) != 0)
+		goto fail;
+
+	return 0;
+
+fail:
+	NetworkDisconnectSSL(n);
+	return -1;
+}
+
+
+#endif
 
 
 int NetworkConnect(Network* n, char* addr, int port)
@@ -138,9 +204,17 @@ int NetworkConnect(Network* n, char* addr, int port)
 				setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 				rc = connect(n->my_socket, res->ai_addr, res->ai_addrlen);
 				if (rc == 0) {
-					tv.tv_sec = 0;
-					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
-					break;
+#if defined(MQTT_SSL)
+					rc = NetworkConnectSSL(n, addr);
+					if (rc == 0)
+#else
+					if (1)
+#endif
+					{
+						tv.tv_sec = 0;
+						setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+						break;
+					}
 				}
 
 				close(n->my_socket);
@@ -157,5 +231,8 @@ int NetworkConnect(Network* n, char* addr, int port)
 
 void NetworkDisconnect(Network* n)
 {
+#if defined(MQTT_SSL)
+	NetworkDisconnectSSL(n);
+#endif
 	close(n->my_socket);
 }
