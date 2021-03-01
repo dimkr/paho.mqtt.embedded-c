@@ -41,10 +41,19 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdint.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+
+#if defined(MQTT_SSL)
+  #include <mbedtls/net_sockets.h>
+  #include <mbedtls/entropy.h>
+  #include <mbedtls/ctr_drbg.h>
+  #include <mbedtls/ssl.h>
+#endif
 
 typedef struct Timer
 {
@@ -59,6 +68,15 @@ int TimerLeftMS(Timer*);
 
 typedef struct Network
 {
+#if defined(MQTT_SSL)
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_config conf;
+  #if defined(MQTT_SSL_VERIFY)
+	mbedtls_x509_crt ca;
+  #endif
+#endif
 	int my_socket;
 	int (*mqttread) (struct Network*, unsigned char*, int, int);
 	int (*mqttwrite) (struct Network*, unsigned char*, int, int);

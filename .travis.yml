@@ -4,6 +4,10 @@ dist: bionic
 os:
   - linux
 
+git:
+  submodules: true
+  depth: 10
+
 before_install:
   - ./travis-install.sh
   - unset CC

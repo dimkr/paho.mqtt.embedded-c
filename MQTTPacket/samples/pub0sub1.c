@@ -56,7 +56,11 @@ int main(int argc, char *argv[])
 	int payloadlen = strlen(payload);
 	int len = 0;
 	char *host = "m2m.eclipse.org";
+#if defined(MQTT_SSL)
+	char *port = "8883";
+#else
 	char *port = "1883";
+#endif
 
 	stop_init();
 	if (argc > 1)
