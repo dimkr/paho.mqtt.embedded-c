@@ -25,6 +25,12 @@ libpaho_embed_mqtt3c_cflags = [
     '-DMQTTCLIENT_PLATFORM_HEADER=MQTTLinux.h',
 ]
 
+cc = meson.get_compiler('c')
+
+librt = cc.find_library('rt')
+
+libpaho_embed_mqtt3c_dependencies = []
+
 if get_option('default_library') == 'shared'
     libpaho_embed_mqtt3c_cflags += ['-DLINUX_SO']
 
@@ -32,6 +38,7 @@ if get_option('default_library') == 'shared'
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags,
+                                          dependencies: librt,
                                           gnu_symbol_visibility: 'hidden',
                                           soversion: 1)
 else
@@ -39,11 +46,13 @@ else
                                           srcs,
                                           include_directories: libpaho_embed_mqtt3c_includes,
                                           c_args: libpaho_embed_mqtt3c_cflags)
+    libpaho_embed_mqtt3c_dependencies += librt
 endif
 
 libpaho_embed_mqtt3c_dependency = declare_dependency(include_directories: libpaho_embed_mqtt3c_includes,
                                                      link_with: libpaho_embed_mqtt3c,
-                                                     compile_args: libpaho_embed_mqtt3c_cflags)
+                                                     compile_args: libpaho_embed_mqtt3c_cflags,
+                                                     dependencies: libpaho_embed_mqtt3c_dependencies)
 
 if not meson.is_subproject()
     foreach name: ['pub0sub1', 'qos0pub']
