@@ -45,7 +45,7 @@ static int sendPacket(MQTTClient* c, int length, Timer* timer)
     }
     if (sent == length)
     {
-        TimerCountdown(&c->last_sent, c->keepAliveInterval); // record the fact that we have successfully sent the packet
+        TimerCountdown(&c->last_io, c->keepAliveInterval); // record the fact that we have successfully sent the packet
         rc = SUCCESS;
     }
     else
@@ -72,8 +72,7 @@ void MQTTClientInit(MQTTClient* c, Network* network, unsigned int command_timeou
     c->ping_outstanding = 0;
     c->defaultMessageHandler = NULL;
 	  c->next_packetid = 1;
-    TimerInit(&c->last_sent);
-    TimerInit(&c->last_received);
+    TimerInit(&c->last_io);
 #if defined(MQTT_TASK)
 	  MutexInit(&c->mutex);
 #endif
@@ -139,7 +138,7 @@ static int readPacket(MQTTClient* c, Timer* timer)
     header.byte = c->readbuf[0];
     rc = header.bits.type;
     if (c->keepAliveInterval > 0)
-        TimerCountdown(&c->last_received, c->keepAliveInterval); // record the fact that we have successfully received a packet
+        TimerCountdown(&c->last_io, c->keepAliveInterval); // record the fact that we have successfully received a packet
 exit:
     return rc;
 }
@@ -209,15 +208,23 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
 }
 
 
-int keepalive(MQTTClient* c)
+int MQTTKeepalive(MQTTClient* c, int timeout_ms)
 {
     int rc = SUCCESS;
 
     if (c->keepAliveInterval == 0)
         goto exit;
 
-    if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
+    if (TimerIsExpired(&c->last_io))
     {
+        if (c->ipstack->mqttkeepalive)
+        {
+            if (c->ipstack->mqttkeepalive(c->ipstack, timeout_ms, c->keepAliveInterval) <= 0)
+                rc = FAILURE;
+            TimerCountdown(&c->last_io, c->keepAliveInterval);
+            goto exit;
+        }
+
         if (c->ping_outstanding)
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
         else
@@ -324,7 +331,7 @@ int cycle(MQTTClient* c, Timer* timer)
             break;
     }
 
-    if (keepalive(c) != SUCCESS) {
+    if (MQTTKeepalive(c, TimerLeftMS(timer)) != SUCCESS) {
         //check only keepalive FAILURE status so that previous FAILURE status can be considered as FAULT
         rc = FAILURE;
     }
@@ -431,7 +438,7 @@ int MQTTConnectWithResults(MQTTClient* c, MQTTPacket_connectData* options, MQTTC
 
     c->keepAliveInterval = options->keepAliveInterval;
     c->cleansession = options->cleansession;
-    TimerCountdown(&c->last_received, c->keepAliveInterval);
+    TimerCountdown(&c->last_io, c->keepAliveInterval);
     if ((len = MQTTSerialize_connect(c->buf, c->buf_size, options)) <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &connect_timer)) != SUCCESS)  // send the connect packet

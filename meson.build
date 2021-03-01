@@ -29,22 +29,23 @@ libpaho_embed_mqtt33_dependencies = []
 
 default_library = get_option('default_library')
 
-if get_option('ssl')
-    cmake = import('cmake')
+mbedtls_options = [
+    '-DENABLE_PROGRAMS=OFF',
+    '-DUSE_PKCS11_HELPER_LIBRARY=OFF',
+    '-DINSTALL_MBEDTLS_HEADERS=OFF',
+    '-DCMAKE_C_FLAGS=-DMBEDTLS_USER_CONFIG_FILE=\"@0@/mbedtls-config.h\"'.format(meson.current_source_dir()),
+]
 
-    mbedtls_options = [
-        '-DENABLE_PROGRAMS=OFF',
-        '-DUSE_PKCS11_HELPER_LIBRARY=OFF',
-        '-DINSTALL_MBEDTLS_HEADERS=OFF',
-        '-DCMAKE_C_FLAGS=-DMBEDTLS_USER_CONFIG_FILE=\"@0@/mbedtls-config.h\"'.format(meson.current_source_dir()),
+if default_library != 'static'
+    mbedtls_options += [
+        '-DUSE_STATIC_MBEDTLS_LIBRARY=OFF',
+        '-DUSE_SHARED_MBEDTLS_LIBRARY=ON',
     ]
+endif
 
-    if default_library != 'static'
-        mbedtls_options += [
-            '-DUSE_STATIC_MBEDTLS_LIBRARY=OFF',
-            '-DUSE_SHARED_MBEDTLS_LIBRARY=ON',
-        ]
-    endif
+ssl = get_option('ssl')
+if ssl
+    cmake = import('cmake')
 
     mbedtls = cmake.subproject('mbedtls', cmake_options: mbedtls_options)
 
@@ -70,6 +71,20 @@ if get_option('ssl')
                                      meson.current_build_dir()
                                  ])
         srcs += ca_certs
+    endif
+endif
+
+if get_option('websocket')
+    libpaho_embed_mqtt3c_cflags += ['-DMQTT_WEBSOCKET']
+    if not ssl
+        cmake = import('cmake')
+
+        mbedtls = cmake.subproject('mbedtls', cmake_options: mbedtls_options)
+
+        libmbedcrypto = mbedtls.dependency('mbedcrypto')
+
+        libpaho_embed_mqtt3c_includes += include_directories('subprojects/mbedtls/include')
+        libpaho_embed_mqtt33_dependencies += [libmbedcrypto]
     endif
 endif
 

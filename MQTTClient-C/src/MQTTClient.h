@@ -124,7 +124,7 @@ typedef struct MQTTClient
     void (*defaultMessageHandler) (MessageData*);
 
     Network* ipstack;
-    Timer last_sent, last_received;
+    Timer last_io;
 #if defined(MQTT_TASK)
     Mutex mutex;
     Thread thread;
@@ -204,6 +204,13 @@ DLLExport int MQTTUnsubscribe(MQTTClient* client, const char* topicFilter);
  *  @return success code
  */
 DLLExport int MQTTDisconnect(MQTTClient* client);
+
+/** MQTT Keepalive - check if the MQTT server responds to ping packets.
+ *  @param client - the client object to use
+ *  @param timeout_ms - timeout in milliseconds
+ *  @return success code
+ */
+DLLExport int MQTTKeepalive(MQTTClient* c, int timeout_ms);
 
 /** MQTT Yield - MQTT background
  *  @param client - the client object to use
