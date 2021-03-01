@@ -115,7 +115,7 @@ void NetworkInit(Network* n)
 
 int NetworkConnect(Network* n, char* addr, int port)
 {
-	int rc = -1;
+	int rc = -1, one = 1;
 	struct addrinfo *result = NULL;
 	struct addrinfo hints = {.ai_socktype = SOCK_STREAM};
 	struct timeval tv = {.tv_sec = 3};
@@ -140,6 +140,7 @@ int NetworkConnect(Network* n, char* addr, int port)
 				if (rc == 0) {
 					tv.tv_sec = 0;
 					setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+					setsockopt(n->my_socket, SOL_TCP, TCP_NODELAY, (char *)&one,sizeof(one));
 					break;
 				}
 
