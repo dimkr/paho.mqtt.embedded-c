@@ -45,7 +45,7 @@ void stop_init(void)
 int main(int argc, char *argv[])
 {
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-	int rc = 0;
+	int rc;
 	int mysock = 0;
 	unsigned char buf[200];
 	int buflen = sizeof(buf);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	rc = transport_sendPacketBuffer(mysock, buf, len);
 
 	/* wait for connack */
-	if (MQTTPacket_read(buf, buflen, transport_getdata) == CONNACK)
+	if (rc == len && MQTTPacket_read(buf, buflen, transport_getdata) == CONNACK)
 	{
 		unsigned char sessionPresent, connack_rc;
 
@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
 			unsigned short msgid;
 			int payloadlen_in;
 			unsigned char* payload_in;
-			int rc;
 			MQTTString receivedTopic;
 
 			rc = MQTTDeserialize_publish(&dup, &qos, &retained, &msgid, &receivedTopic,
