@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y python3-pip python3-setuptools python3-wheel ninja-build mosquitto ccache
+          sudo apt-get install --no-install-recommends -y python3-setuptools python3-wheel ninja-build mosquitto ccache
       - name: travis-install.sh
         run: ./travis-install.sh
         env:
@@ -28,4 +28,4 @@ jobs:
           restore-keys: |
             ${{ github.workflow }}-ccache-
       - name: travis-build.sh
-        run: ./travis-build.sh
+        run: PATH="~/.local/bin:$PATH" ./travis-build.sh
