@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 0 * * 4'
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          apt-get update -qq
+          apt-get install --no-install-recommends -y python3-pip python3-setuptools python3-wheel ninja-build mosquitto ccache
+      - name: travis-install.sh
+        run: ./travis-install.sh
+        env:
+          TRAVIS_OS_NAME: linux
+      - name: Get ~/.ccache
+        uses: actions/cache@v2
+        with:
+          path: ~/.ccache
+          key: ${{ github.workflow }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ github.workflow }}-ccache-
+      - name: travis-build.sh
+        run: ./travis-build.sh
